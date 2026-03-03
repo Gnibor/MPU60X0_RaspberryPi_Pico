@@ -35,11 +35,14 @@
 // ==========================================
 // === GY521(MPU-6050) register addresses ===
 // ==========================================
-#define GY521_REG_ACCEL_XOUT_H 0x3B
+#define GY521_REG_GYRO_CONFIG 0x1b
 #define GY521_REG_ACCEL_CONFIG 0x1c
+#define GY521_REG_INT_PIN_CFG 0x37
+#define GY521_REG_INT_ENABLE 0x38
+#define GY521_REG_INT_STATUS 0x3A
+#define GY521_REG_ACCEL_XOUT_H 0x3B
 #define GY521_REG_TEMP_OUT_H 0x41
 #define GY521_REG_GYRO_XOUT_H  0x43
-#define GY521_REG_GYRO_CONFIG 0x1b
 #define GY521_REG_SIGNAL_PATH_RESET 0x68
 #define GY521_REG_USER_CTRL 0x6A
 #define GY521_REG_PWR_MGMT_1 0x6B
@@ -391,14 +394,30 @@ bool gy521_calibrate_gyro(uint8_t samples){
 	return true;
 }
 
-// ===============================
-// === Interrupt configuration ===
-// ===============================
+#if GY521_INT_PIN
+// ===================================
+// === Interrupt pin configuration ===
+// ===================================
 bool gy521_int_pin_cfg(void){
 	if(!g_gy521) return false;
 
+	if(!gy521_read_register(GY521_REG_INT_PIN_CFG, g_gy521_cache, 1)) return false;
+
+	if(g_gy521->opt.interrupt.pin_cfg.int_level) g_gy521_cache[0] |= GY521_INT_LEVEL;
+	if(g_gy521->opt.interrupt.pin_cfg.int_open) g_gy521_cache[0] |= GY521_INT_OPEN;
+	if(g_gy521->opt.interrupt.pin_cfg.latch_int_en) g_gy521_cache[0] |= GY521_LATCH_INT_EN;
+	if(g_gy521->opt.interrupt.pin_cfg.int_rd_clear) g_gy521_cache[0] |= GY521_INT_RD_CLEAR;
+	if(g_gy521->opt.interrupt.pin_cfg.fsync_int_level) g_gy521_cache[0] |= GY521_FSYNC_INT_LEVEL;
+	if(g_gy521->opt.interrupt.pin_cfg.fsync_int_en) g_gy521_cache[0] |= GY521_FSYNC_INT_EN;
+	if(g_gy521->opt.interrupt.pin_cfg.i2c_bypass_en) g_gy521_cache[0] |= GY521_I2C_BYPASS_EN;
+
+	// Write back to registers
+	g_gy521_ret_cache = i2c_write_blocking(GY521_I2C_PORT, g_gy521->conf.addr, (uint8_t[]){GY521_REG_INT_PIN_CFG, g_gy521_cache[0]}, 2, false);
+	if(g_gy521_ret_cache!= 2) return false;
+
 	return true;
 }
+#endif // GY521_INT_PIN
 
 // ===========================================
 // === Read Sensor Data + Optional Scaling ===
