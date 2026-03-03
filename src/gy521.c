@@ -131,7 +131,6 @@ gy521_s gy521_init(uint8_t addr){
 
 	gy521.conf.accel.fsr_divider = 131.0f;
 	gy521.conf.gyro.fsr_divider = 16384.0f;
-	gy521.conf.gyro.x.clksel = true;
 
 	gy521.fn.reset = &gy521_reset;
 	gy521.fn.sleep = &gy521_sleep;
@@ -237,6 +236,10 @@ bool gy521_set_clksel(void){
 	if(g_gy521->opt.clksel.gyro.x) g_gy521->conf.clksel = GY521_CLKSEL_GYRO_X;
 	else if(g_gy521->opt.clksel.gyro.y) g_gy521->conf.clksel = GY521_CLKSEL_GYRO_Y;
 	else if (g_gy521->opt.clksel.gyro.z) g_gy521->conf.clksel = GY521_CLKSEL_GYRO_Z;
+	else if (g_gy521->opt.clksel.ext_32_768khz) g_gy521->conf.clksel = GY521_CLKSEL_EXT_32_768KHZ;
+	else if (g_gy521->opt.clksel.ext_19_2mhz) g_gy521->conf.clksel = GY521_CLKSEL_EXT_19_2MHZ;
+	else if (g_gy521->opt.clksel.stop) g_gy521->conf.clksel = GY521_CLKSEL_STOP;
+	else if (g_gy521->opt.clksel.int_8mhz) g_gy521->conf.clksel = GY521_CLKSEL_8MHZ;
 
 	if(!gy521_read_register(GY521_REG_PWR_MGMT_1, g_gy521_cache, 1)) return false;
 	g_gy521_cache[0] &= ~0x47; // clear sleep & CLK_SEL

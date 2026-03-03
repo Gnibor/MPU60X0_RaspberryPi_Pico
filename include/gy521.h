@@ -197,6 +197,8 @@ typedef struct gy521_s{
 		} sleep; // Device sleep state
 
 		struct{
+			bool int_8mhz, stop;
+			bool ext_32_768khz, ext_19_2mhz;
 			gy521_axis_bool_t gyro;
 		} clksel; // Clock source
 
