@@ -29,6 +29,7 @@
 #include "hardware/i2c.h"
 #include <stdbool.h>
 #include <stdint.h>
+#include <string.h>
 #include "gy521.h"
 
 // ==========================================
@@ -122,7 +123,8 @@ gy521_s gy521_init(uint8_t addr){
 		gpio_set_dir(GY521_INT_PIN, GPIO_IN);
 	}
 
-	gy521_s gy521 = {0}; // Initalize device struct and function pointers
+	gy521_s gy521; // Initalize device struct and function pointers
+	memset(&gy521, 0, sizeof(gy521));
 
 	if(!addr) gy521.conf.addr = GY521_I2C_ADDR_GND;
 	else gy521.conf.addr = addr;
@@ -139,8 +141,6 @@ gy521_s gy521_init(uint8_t addr){
 	gy521.fn.fsr = &gy521_set_fsr;
 	gy521.fn.stby = &gy521_set_stby;
 	gy521.fn.clk_sel = &gy521_set_clksel;
-
-	g_gy521 = &gy521;
 
 	return gy521;
 }

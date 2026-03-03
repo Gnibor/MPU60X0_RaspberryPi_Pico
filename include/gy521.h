@@ -151,6 +151,13 @@ typedef struct{
 } gy521_axis_scaled_t;
 
 /*
+ * per Axis bool for options
+ */
+typedef struct{
+	bool x, y, z;
+} gy521_axis_bool_t;
+
+/*
  * Main device structure
  *
  * This struct contains:
@@ -162,7 +169,7 @@ typedef struct gy521_s{
 	// =====================
 	// === Sensor Values ===
 	// =====================
-	struct{ // Values
+	struct{
 		struct{
 			gy521_axis_raw_t raw; // Raw accelerometer values
 			gy521_axis_scaled_t g; // Converted acceleration in G
@@ -179,46 +186,51 @@ typedef struct gy521_s{
 		} temp;
 	} v;
 
-	// =====================
-	// === Configuration ===
-	// =====================
+	// ===============
+	// === Options ===
+	// ===============
 	struct{
-		bool sleep; // Device sleep state
-		uint8_t clksel; // Clock source
+		bool scaled;
+		uint8_t addr; // Device Address
+
+		struct{
+			bool device, temp;
+		} sleep; // Device sleep state
+
+		struct{
+			gy521_axis_bool_t gyro;
+		} clksel; // Clock source
+
 		struct{
 			bool device;
 			bool fifo;
 			bool i2c_mst;
 			bool sig_cond;
+			bool accel, temp, gyro;
 		} reset; // Reset flags
-		bool scaled;
-		uint8_t addr; // Device Address
 
 		struct{
-			uint8_t fsr; // Full scale range setting
-			float fsr_divider;
-			bool reset;
-
-			struct{ bool stby; } x;
-			struct{ bool stby; } y;
-			struct{ bool stby; } z;
-		} accel;
+			gy521_axis_bool_t accel, gyro;
+		} stby;
 
 		struct{
-			bool sleep; // Disable temperature sensor
-			bool reset;
-		} temp;
+			struct{ bool g2, g4, g8, g16; } accel;
+			struct{ bool dps250, dps500, dps1000, dps2000; } gyro;
+		} fsr;
+	} opt;
 
+	// =====================
+	// === Configuration ===
+	// =====================
+	struct{
 		struct{
-			uint8_t fsr;
 			float fsr_divider;
 			gy521_offset_t offset;
-			bool reset;
-
-			struct{ bool clksel, stby; } x;
-			struct{ bool clksel, stby; } y;
-			struct{ bool clksel, stby; } z;
 		} gyro;
+		
+		struct{
+			float fsr_divider;
+		} accel;
 	} conf;
 
 	// =========================

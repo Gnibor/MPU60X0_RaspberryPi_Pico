@@ -37,6 +37,9 @@
 int main(void){
 	stdio_init_board();
 	gy521_s gy521 = gy521_init(GY521_I2C_ADDR_GND);
+	gy521_use(&gy521);
+	gy521.conf.reset.device = true;
+	if(gy521.fn.reset()) printf("GY-521 got reset\n");
 	int retries = 3;
 	bool connected = false;
 	printf("Try connecting GY-521...\n");
@@ -50,7 +53,6 @@ int main(void){
 	if(!connected) printf("GY-521 not found!\n");
 	else printf("GY-521 ready!\n");
 
-	if(gy521.fn.reset()) printf("GY-521 got reset\n");
 
 	gy521.conf.scaled = true;
 	gy521.conf.sleep = false;
@@ -70,9 +72,10 @@ int main(void){
 
 	printf("Try to calibrate GY-521\n");
 	sleep_ms(2000);
-	if(gy521.fn.gyro.calibrate(15)) printf("GY-521 is now calibrated.\n");
+	if(gy521.fn.gyro.calibrate(10)) printf("GY-521 is now calibrated.\n");
 	else printf("GY-521 could not be calibrated.\n");
 
+	printf("how big is it?: %d\n", sizeof(gy521));
 	while(1){
 		if(gy521.fn.read(0))
 			printf("G=X:%6.3f Y:%6.3f Z:%6.3f | °C=%6.2f | °/s=X:%9.3f Y:%9.3f Z:%9.3f\n", 

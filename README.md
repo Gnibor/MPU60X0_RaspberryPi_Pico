@@ -107,11 +107,9 @@ int main(void)
     while (!stdio_usb_connected()) sleep_ms(100);
 
     gy521_s imu = gy521_init(GY521_I2C_ADDR_GND);
+    gy521_use(&imu);
 
-    if (!imu.fn.test_connection()) {
-        printf("Device not found!\n");
-        return 1;
-    }
+    if (!imu.fn.test_connection()) printf("Device not found!\n");
 
     imu.conf.sleep = false;
     imu.conf.temp.sleep = false;
@@ -139,7 +137,7 @@ int main(void)
 ---
 
 ## API Overview
-
+ 
 ### Initialization
 
 ```c
@@ -154,7 +152,7 @@ Initializes I²C and returns a fully configured device struct.
 bool gy521_use(gy521_s device);
 ```
 
-Sets a global pointer to 'device' all .fn. are now bounded to this 'device'.
+All fn.* are now bounded to this 'device'.
 
 ---
 
