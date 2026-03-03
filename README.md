@@ -164,9 +164,7 @@ And set 'device' as active.
 | `bool fn.clk_sel()` | Selects clock source |
 | `bool fn.read(accel_temp_gyro)` | Reads sensor data (raw or scaled) |
 | `bool fn.gyro.calibrate(samples)` | Computes gyro zero-offset |
-|----------|------------|
-| If GY521_INT_PIN is greater than 0 ||
-|----------|------------|
+| If GY521_INT_PIN > 0 | you get these functions |
 | `bool fn.interrupt.pin_cfg()` | Configures the interrupts pins |
 | `bool fn.interrupt.enable()` | Enables interrupts |
 | `bool fn.interrupt.status()` | Reads the INT_STATUS register and sets flags in v.int_status |
