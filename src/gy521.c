@@ -72,6 +72,31 @@
 #define GY521_STBY_YG (1 << 1)
 #define GY521_STBY_ZG (1 << 0)
 
+// ========================================
+// === Full Scale Range (FSR) bit masks ===
+// ========================================
+// Accelerometer FSR values
+#define GY521_ACCEL_FSR_SEL_2G 0x00
+#define GY521_ACCEL_FSR_SEL_4G 0x08
+#define GY521_ACCEL_FSR_SEL_8G 0x10
+#define GY521_ACCEL_FSR_SEL_16G 0x18
+// Gyroscope FSR values
+#define GY521_GYRO_FSR_SEL_250DPS 0x00
+#define GY521_GYRO_FSR_SEL_500DPS 0x08
+#define GY521_GYRO_FSR_SEL_1000DPS 0x10
+#define GY521_GYRO_FSR_SEL_2000DPS 0x18
+
+// ==============================================
+// === Clock Source Select (CLKSEL) bit masks ===
+// ==============================================
+#define GY521_CLKSEL_8MHZ 0x00 // Internal 8 MHz oscillator
+#define GY521_CLKSEL_GYRO_X 0x01 // PLL with X-axis gyroscope reference
+#define GY521_CLKSEL_GYRO_Y 0x02 // PLL with Y-axis gyroscope reference
+#define GY521_CLKSEL_GYRO_Z 0x03 // PLL with Z-axis gyroscope reference
+#define GY521_CLKSEL_EXT_32_768KHZ 0x04 // External 32.768 kHz reference
+#define GY521_CLKSEL_EXT_19_2MHZ 0x05 // External 19.2 MHz reference
+#define GY521_CLKSEL_STOP 0x07 // Stops clock and keeps timing generator in reset
+
 // ===========================
 // === Function prototypes ===
 // ===========================
