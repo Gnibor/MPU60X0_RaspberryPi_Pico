@@ -141,8 +141,8 @@ int main(void)
 ### Initialization
 
 ```c
-gy521_s device = gy521_init(uint8_t addr);
-gy521_use(gy521_s device);
+gy521_s device = gy521_init(GY521_I2C_ADDR_GND);
+gy521_use(&device);
 ```
 
 Initializes I²C and returns a fully configured device struct.
@@ -164,7 +164,12 @@ And set 'device' as active.
 | `bool fn.clk_sel()` | Selects clock source |
 | `bool fn.read(accel_temp_gyro)` | Reads sensor data (raw or scaled) |
 | `bool fn.gyro.calibrate(samples)` | Computes gyro zero-offset |
-| If '#define GY521_INT_PIN' > 0 | you get these functions |
+
+#### Interrupt Functions
+
+If '#define GY521_INT_PIN' is not '0' you unlock these functions
+
+|----------|------------|
 | `bool fn.interrupt.pin_cfg()` | Configures the interrupts pins |
 | `bool fn.interrupt.enable()` | Enables interrupts |
 | `bool fn.interrupt.status()` | Reads the INT_STATUS register and sets flags in v.int_status |
