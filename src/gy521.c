@@ -96,23 +96,18 @@
 #define GY521_STBY_YG (1 << 1)
 #define GY521_STBY_ZG (1 << 0)
 
-// ========================================
-// === Full Scale Range (FSR) bit masks ===
-// ========================================
-// Accelerometer FSR values
-#define GY521_ACCEL_FSR_SEL_2G 0x00
-#define GY521_ACCEL_FSR_SEL_4G 0x08
-#define GY521_ACCEL_FSR_SEL_8G 0x10
-#define GY521_ACCEL_FSR_SEL_16G 0x18
-// Gyroscope FSR values
+// GY521_REG_GYRO_CONFIG
 #define GY521_GYRO_FSR_SEL_250DPS 0x00
 #define GY521_GYRO_FSR_SEL_500DPS 0x08
 #define GY521_GYRO_FSR_SEL_1000DPS 0x10
 #define GY521_GYRO_FSR_SEL_2000DPS 0x18
+// GY521_REG_ACCEL_CONFIG
+#define GY521_ACCEL_FSR_SEL_2G 0x00
+#define GY521_ACCEL_FSR_SEL_4G 0x08
+#define GY521_ACCEL_FSR_SEL_8G 0x10
+#define GY521_ACCEL_FSR_SEL_16G 0x18
 
-// ==============================================
-// === Clock Source Select (CLKSEL) bit masks ===
-// ==============================================
+// GY521_REG_PWR_MGMT_1
 #define GY521_CLKSEL_8MHZ 0x00 // Internal 8 MHz oscillator
 #define GY521_CLKSEL_GYRO_X 0x01 // PLL with X-axis gyroscope reference
 #define GY521_CLKSEL_GYRO_Y 0x02 // PLL with Y-axis gyroscope reference
