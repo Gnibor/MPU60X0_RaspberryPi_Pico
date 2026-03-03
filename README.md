@@ -141,18 +141,12 @@ int main(void)
 ### Initialization
 
 ```c
-gy521_s gy521_init(uint8_t addr);
+gy521_s device = gy521_init(uint8_t addr);
+gy521_use(gy521_s device);
 ```
 
 Initializes I²C and returns a fully configured device struct.
-
-### Switch Device
-
-```c
-bool gy521_use(gy521_s device);
-```
-
-All fn.* are now bounded to this 'device'.
+And set 'device' as active.
 
 ---
 
@@ -160,16 +154,22 @@ All fn.* are now bounded to this 'device'.
 
 | Function | Description |
 |----------|------------|
-| `gy521_init(addr)` | Initilize I²C connection and returns a device struct |
-| `gy521_use(device)` | Set the global pointer for fn.* to 'device' |
-| `fn.test_connection()` | Verifies device via WHO_AM_I register |
-| `fn.reset()` | Performs resets set in conf.reset.* |
-| `fn.sleep()` | Enables/disables sleep mode |
-| `fn.fsr()` | Sets full-scale range and updates scaling |
-| `fn.stby()` | Enables/disables standby per axis |
-| `fn.clk_sel()` | Selects clock source |
-| `fn.read(accel_temp_gyro)` | Reads sensor data (raw or scaled) |
-| `fn.gyro.calibrate(samples)` | Computes gyro zero-offset |
+| `gy521_s gy521_init(addr)` | Initilize I²C connection and returns a device struct |
+| `bool gy521_use(device)` | Set the global pointer for fn.* to 'device' |
+| `bool fn.test_connection()` | Verifies device via WHO_AM_I register |
+| `bool fn.reset()` | Performs resets set in conf.reset.* |
+| `bool fn.sleep()` | Enables/disables sleep mode |
+| `bool fn.fsr()` | Sets full-scale range and updates scaling |
+| `bool fn.stby()` | Enables/disables standby per axis |
+| `bool fn.clk_sel()` | Selects clock source |
+| `bool fn.read(accel_temp_gyro)` | Reads sensor data (raw or scaled) |
+| `bool fn.gyro.calibrate(samples)` | Computes gyro zero-offset |
+|----------|------------|
+| If GY521_INT_PIN is greater than 0 ||
+|----------|------------|
+| `bool fn.interrupt.pin_cfg()` | Configures the interrupts pins |
+| `bool fn.interrupt.enable()` | Enables interrupts |
+| `bool fn.interrupt.status()` | Reads the INT_STATUS register and sets flags in v.int_status |
 
 ---
 
