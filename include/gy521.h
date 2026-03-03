@@ -66,8 +66,16 @@
 #define GY521_INT_PIN 24  // Optional interrupt pin (0 and the interrupt parts are not loaded)
 #endif
 
-#ifndef GY521_MAX_DEVICES
-#define GY521_MAX_DEVICES 2
+#ifndef GY521_USE_RESET
+#define GY521_USE_RESET 1
+#endif
+
+#ifndef GY521_USE_INTERRUPT
+#define GY521_USE_INTERRUPT 1
+#endif
+
+#ifndef GY521_USE_STAND_BY
+#define GY521_USE_STAND_BY 1
 #endif
 
 #define GY521_I2C_ADDR_GND 0x68 // Default I2C address for GY-521(MPU-6050) (AD0 pin -> Gnd)
@@ -160,7 +168,7 @@ typedef struct gy521_s{
 			float celsius; // Converted temperature in °C
 		} temp;
 
-#if GY521_INT_PIN
+#if GY521_USE_INTERRUPT
 		struct{
 			bool fifo_owflow_int, i2c_mst_int, data_rdy_int;
 		} int_status;
@@ -183,6 +191,7 @@ typedef struct gy521_s{
 			gy521_axis_bool_t gyro;
 		} clksel; // Clock source
 
+#if GY521_USE_RESET
 		struct{
 			bool device;
 			bool fifo;
@@ -190,17 +199,20 @@ typedef struct gy521_s{
 			bool sig_cond;
 			bool accel, temp, gyro;
 		} reset; // Reset flags
+#endif
 
+#if GY521_USE_STAND_BY
 		struct{
 			gy521_axis_bool_t accel, gyro;
 		} stby;
+#endif
 
 		struct{
 			struct{ bool g2, g4, g8, g16; } accel;
 			struct{ bool dps250, dps500, dps1000, dps2000; } gyro;
 		} fsr;
 
-#if GY521_INT_PIN
+#if GY521_USE_INTERRUPT
 		struct{
 			struct{
 				bool int_level, int_open, latch_int_en, int_rd_clear,
@@ -238,18 +250,22 @@ typedef struct gy521_s{
 	// =========================
 	struct{
 		bool (*test_connection)(void);
+#if GY521_USE_RESET
 		bool (*reset)(void);
+#endif
 		bool (*sleep)(void);
 		bool (*read)(uint8_t);
 		bool (*fsr)(void);
+#if GY521_USE_STAND_BY
 		bool (*stby)(void);
+#endif
 		bool (*clksel)(void);
 
 		struct{
 			bool (*calibrate)(uint8_t);
 		} gyro;
 
-#if GY521_INT_PIN
+#if GY521_USE_INTERRUPT
 		struct{
 			bool (*pin_cfg)(void);
 			bool (*enable)(void);
