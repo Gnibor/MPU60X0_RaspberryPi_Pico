@@ -35,11 +35,14 @@
 // ==========================================
 // === GY521(MPU-6050) register addresses ===
 // ==========================================
+#define GY521_REG_GYRO_CONFIG 0x1B
+#define GY521_REG_ACCEL_CONFIG 0x1C
+#define GY521_REG_INT_PIN_CFG 0x37
+#define GY521_REG_INT_ENABLE 0x38
+#define GY521_REG_INT_STATUS 0x3A
 #define GY521_REG_ACCEL_XOUT_H 0x3B
-#define GY521_REG_ACCEL_CONFIG 0x1c
 #define GY521_REG_TEMP_OUT_H 0x41
 #define GY521_REG_GYRO_XOUT_H  0x43
-#define GY521_REG_GYRO_CONFIG 0x1b
 #define GY521_REG_SIGNAL_PATH_RESET 0x68
 #define GY521_REG_USER_CTRL 0x6A
 #define GY521_REG_PWR_MGMT_1 0x6B
@@ -49,10 +52,32 @@
 // =============================================
 // === Bitmasks for reset, FIFO, sleep, etc. ===
 // =============================================
+
+// GY521_REG_INT_PIN_CFG
+#define GY521_I2C_BYPASS_EN (1 << 1)
+#define GY521_FSYNC_INT_EN (1 << 2)
+#define GY521_FSYNC_INT_LEVEL (1 << 3)
+#define GY521_INT_RD_CLEAR (1 << 4)
+#define GY521_LATCH_INT_EN (1 << 5)
+#define GY521_INT_OPEN (1 << 6)
+#define GY521_INT_LEVEL (1 << 7)
+
+// GY521_REG_INT_ENABLE
+#define GY521_DATA_RDY_EN (1 << 0)
+#define GY521_I2C_MST_INT_EN (1 << 3)
+#define GY521_FIFO_OFLOW_EN (1 << 4)
+
+// GY521_REG_INT_STATUS
+#define GY521_DATA_RDY_INT (1 << 0)
+#define GY521_I2C_MST_INT (1 << 3)
+#define GY521_FIFO_OFLOW_INT (1 << 4)
+
+// GY521_REG_SIGNAL_PATH_RESET
 #define GY521_GYRO_RESET (1 << 2)
 #define GY521_ACCEL_RESET (1 << 1)
 #define GY521_TEMP_RESET (1 << 0)
 
+// GY521_REG_USER_CTRL
 #define GY521_FIFO_EN (1 << 6)
 #define GY521_I2C_MST_EN (1 << 5)
 #define GY521_I2C_IF_DIS (1 << 4)
@@ -60,11 +85,13 @@
 #define GY521_I2C_MST_RESET (1 << 1)
 #define GY521_SIG_COND_RESET (1 << 0)
 
+// GY521_REG_PWR_MGMT_1
 #define GY521_DEVICE_RESET (1 << 7)
 #define GY521_SLEEP (1 << 6) // Sleep mode enable/disable
 #define GY521_CYCLE (1 << 5)
 #define GY521_TEMP_DIS (1 << 3)
 
+// GY521_REG_PWR_MGMT_2
 #define GY521_STBY_XA (1 << 5)
 #define GY521_STBY_YA (1 << 4)
 #define GY521_STBY_ZA (1 << 3)
