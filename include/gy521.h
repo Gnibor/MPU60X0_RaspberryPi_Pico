@@ -167,64 +167,7 @@ typedef struct gy521_s{
 			int16_t raw; // Raw temperature values
 			float celsius; // Converted temperature in °C
 		} temp;
-
-#if GY521_USE_INTERRUPT
-		struct{
-			bool fifo_owflow_int, i2c_mst_int, data_rdy_int;
-		} int_status;
-#endif
 	} v;
-
-	// ===============
-	// === Options ===
-	// ===============
-	struct{
-		bool scaled;
-
-		struct{
-			bool device, temp;
-		} sleep; // Device sleep state
-
-		struct{
-			bool int_8mhz, stop;
-			bool ext_32_768khz, ext_19_2mhz;
-			gy521_axis_bool_t gyro;
-		} clksel; // Clock source
-
-#if GY521_USE_RESET
-		struct{
-			bool device;
-			bool fifo;
-			bool i2c_mst;
-			bool sig_cond;
-			bool accel, temp, gyro;
-		} reset; // Reset flags
-#endif
-
-#if GY521_USE_STAND_BY
-		struct{
-			gy521_axis_bool_t accel, gyro;
-		} stby;
-#endif
-
-		struct{
-			struct{ bool g2, g4, g8, g16; } accel;
-			struct{ bool dps250, dps500, dps1000, dps2000; } gyro;
-		} fsr;
-
-#if GY521_USE_INTERRUPT
-		struct{
-			struct{
-				bool int_level, int_open, latch_int_en, int_rd_clear,
-				     fsync_int_level, fsync_int_en, i2c_bypass_en;
-			} pin_cfg;
-
-			struct{
-				bool fifo_owflow_en, i2c_mst_int_en, data_rdy_en;
-			} enable;
-		} interrupt;
-#endif
-	} opt;
 
 	// =====================
 	// === Configuration ===

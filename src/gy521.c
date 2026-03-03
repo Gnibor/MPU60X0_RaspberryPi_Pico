@@ -37,17 +37,13 @@
 // ==========================================
 #define GY521_REG_GYRO_CONFIG 0x1b
 #define GY521_REG_ACCEL_CONFIG 0x1c
-#if GY521_USE_INTERRUPT
 #define GY521_REG_INT_PIN_CFG 0x37
 #define GY521_REG_INT_ENABLE 0x38
 #define GY521_REG_INT_STATUS 0x3A
-#endif
 #define GY521_REG_ACCEL_XOUT_H 0x3B
 #define GY521_REG_TEMP_OUT_H 0x41
 #define GY521_REG_GYRO_XOUT_H  0x43
-#if GY521_USE_RESET
 #define GY521_REG_SIGNAL_PATH_RESET 0x68
-#endif
 #define GY521_REG_USER_CTRL 0x6A
 #define GY521_REG_PWR_MGMT_1 0x6B
 #define GY521_REG_PWR_MGMT_2 0x6C
@@ -56,7 +52,6 @@
 // =============================================
 // === Bitmasks for reset, FIFO, sleep, etc. ===
 // =============================================
-#if GY521_USE_INTERRUPT
 // GY521_REG_INT_PIN_CFG
 #define GY521_I2C_BYPASS_EN (1 << 1)
 #define GY521_FSYNC_INT_EN (1 << 2)
@@ -75,32 +70,26 @@
 #define GY521_DATA_RDY_INT (1 << 0)
 #define GY521_I2C_MST_INT (1 << 3)
 #define GY521_FIFO_OFLOW_INT (1 << 4)
-#endif
 
-#if GY521_USE_RESET
 // GY521_REG_SIGNAL_PATH_RESET
 #define GY521_GYRO_RESET (1 << 2)
 #define GY521_ACCEL_RESET (1 << 1)
 #define GY521_TEMP_RESET (1 << 0)
-#endif
 
 // GY521_REG_USER_CTRL
 #define GY521_FIFO_EN (1 << 6)
 #define GY521_I2C_MST_EN (1 << 5)
 #define GY521_I2C_IF_DIS (1 << 4)
-#if GY521_USE_RESET
 #define GY521_FIFO_RESET (1 << 2)
 #define GY521_I2C_MST_RESET (1 << 1)
 #define GY521_SIG_COND_RESET (1 << 0)
 
 // GY521_REG_PWR_MGMT_1
 #define GY521_DEVICE_RESET (1 << 7)
-#endif
 #define GY521_SLEEP (1 << 6) // Sleep mode enable/disable
 #define GY521_CYCLE (1 << 5)
 #define GY521_TEMP_DIS (1 << 3)
 
-#if GY521_USE_STAND_BY
 // GY521_REG_PWR_MGMT_2
 #define GY521_STBY_XA (1 << 5)
 #define GY521_STBY_YA (1 << 4)
@@ -108,7 +97,6 @@
 #define GY521_STBY_XG (1 << 2)
 #define GY521_STBY_YG (1 << 1)
 #define GY521_STBY_ZG (1 << 0)
-#endif
 
 // GY521_REG_GYRO_CONFIG
 #define GY521_GYRO_FSR_SEL_250DPS 0x00
@@ -135,23 +123,16 @@
 // ===========================
 bool gy521_who_am_i(void);
 bool gy521_read_reg(uint8_t reg, uint8_t *out, uint8_t how_many);
-#if GY521_USE_RESET
 bool gy521_reset(void);
-#endif
 bool gy521_sleep(void); // Set sleep configuration
 bool gy521_fsr(void);
 bool gy521_clksel(void);
-#if GY521_USE_STAND_BY
 bool gy521_stby(void);
-#endif
 bool gy521_calibrate_gyro(uint8_t sample); // calibrate gyro offsets (sample=10)
 bool gy521_read(uint8_t accel_temp_gyro); // 0=all 1=accel 2=temp 3=gyro
-
-#if GY521_USE_INTERRUPT
 bool gy521_int_pin_cfg(void);
 bool gy521_int_enable(void);
 bool gy521_int_status(void);
-#endif
 
 // ========================
 // === Global Variables ===
@@ -185,11 +166,9 @@ gy521_s gy521_init(uint8_t addr){
 	gpio_pull_up(GY521_SCL_PIN);
 #endif
 
-#if GY521_USE_INTERRUPT
 	// Configure optional interrupt pin
 	gpio_init(GY521_INT_PIN);
 	gpio_set_dir(GY521_INT_PIN, GPIO_IN);
-#endif
 
 	gy521_s gy521; // Initalize device struct and function pointers
 	memset(&gy521, 0, sizeof(gy521));
@@ -199,24 +178,17 @@ gy521_s gy521_init(uint8_t addr){
 
 	gy521.conf.accel.fsr_divider = 131.0f;
 	gy521.conf.gyro.fsr_divider = 16384.0f;
-
-#if GY521_USE_RESET
 	gy521.fn.reset = &gy521_reset;
-#endif
 	gy521.fn.sleep = &gy521_sleep;
 	gy521.fn.test_connection = &gy521_who_am_i;
 	gy521.fn.read = &gy521_read;
 	gy521.fn.gyro.calibrate = &gy521_calibrate_gyro;
 	gy521.fn.fsr = &gy521_fsr;
-#if GY521_USE_STAND_BY
 	gy521.fn.stby = &gy521_stby;
-#endif
 	gy521.fn.clksel = &gy521_clksel;
-#if GY521_USE_INTERRUPT
 	gy521.fn.interrupt.pin_cfg = &gy521_int_pin_cfg;
 	gy521.fn.interrupt.enable = &gy521_int_enable;
 	gy521.fn.interrupt.status = &gy521_int_status;
-#endif
 
 	return gy521;
 }
@@ -245,7 +217,6 @@ bool gy521_who_am_i(void){
 	return who_am_i == 0x68 ? true : false;
 }
 
-#if GY521_USE_RESET
 // ==========================
 // === Reset GY521 device ===
 // ==========================
@@ -282,9 +253,7 @@ bool gy521_reset(void){
 	}
 	return true;
 }
-#endif
 
-#if GY521_USE_STAND_BY
 // ==========================================
 // === Set Standby in Register PWR_MGMT_2 ===
 // ==========================================
@@ -306,7 +275,6 @@ bool gy521_stby(void){
 
 	return true;
 }
-#endif
 
 // ==========================================
 // === Set CLK_SEL in Register PWR_MGMT_1 ===
@@ -394,7 +362,6 @@ bool gy521_fsr(void){
 	return true;
 }
 
-#if GY521_USE_INTERRUPT
 // ===================================
 // === Interrupt pin configuration ===
 // ===================================
@@ -450,7 +417,6 @@ bool gy521_int_status(void){
 
 	return true;
 }
-#endif // GY521_INT_PIN
 
 // ====================================================
 // === Calibrate gyro (determine zero-point offset) ===
