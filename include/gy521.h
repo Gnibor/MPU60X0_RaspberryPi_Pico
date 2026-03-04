@@ -42,6 +42,7 @@
 #include "hardware/i2c.h"
 #include <stdint.h>
 #include <sys/types.h>
+#include "gy521_reg_map.h"
 
 // =============================
 // === Configurable Hardware ===
@@ -66,18 +67,6 @@
 #define GY521_INT_PIN 24  // Optional interrupt pin (0 and the interrupt parts are not loaded)
 #endif
 
-#ifndef GY521_USE_RESET
-#define GY521_USE_RESET 1
-#endif
-
-#ifndef GY521_USE_INTERRUPT
-#define GY521_USE_INTERRUPT 1
-#endif
-
-#ifndef GY521_USE_STAND_BY
-#define GY521_USE_STAND_BY 1
-#endif
-
 #define GY521_I2C_ADDR_GND 0x68 // Default I2C address for GY-521(MPU-6050) (AD0 pin -> Gnd)
 #define GY521_I2C_ADDR_VCC 0x69 // Default I2C address for GY-521(MPU-6050) (AD0 pin -> Vcc)
 
@@ -95,14 +84,6 @@
 #define GY521_ACCEL 1
 #define GY521_TEMP 2
 #define GY521_GYRO 3
-
-// ========================================
-// === Low Power Wake Control bit masks ===
-// ========================================
-#define GY521_LP_WAKE_CTRL_1_25HZ 0x00
-#define GY521_LP_WAKE_CTRL_5HZ (0x01 << 6)
-#define GY521_LP_WAKE_CTRL_20HZ (0x02 << 6)
-#define GY521_LP_WAKE_CTRL_40HZ (0x03 << 6)
 
 // =======================
 // === Data Structures ===
@@ -173,7 +154,9 @@ typedef struct gy521_s{
 	// === Configuration ===
 	// =====================
 	struct{
+		i2c_inst_t *i2c_port;
 		uint8_t addr; // Device Address
+		uint8_t *cache;
 		uint8_t clksel;
 		
 		struct{
@@ -193,28 +176,22 @@ typedef struct gy521_s{
 	// =========================
 	struct{
 		bool (*test_connection)(void);
-#if GY521_USE_RESET
 		bool (*reset)(void);
-#endif
-		bool (*sleep)(void);
-		bool (*read)(uint8_t);
-		bool (*fsr)(void);
-#if GY521_USE_STAND_BY
+		bool (*sleep)(bool device, bool temp);
+		bool (*read_sensor)(uint8_t, bool);
+		bool (*fsr)(uint8_t, uint8_t);
 		bool (*stby)(void);
-#endif
-		bool (*clksel)(void);
+		bool (*smplrt_div)(uint8_t div);
 
 		struct{
 			bool (*calibrate)(uint8_t);
 		} gyro;
 
-#if GY521_USE_INTERRUPT
 		struct{
 			bool (*pin_cfg)(void);
 			bool (*enable)(void);
 			bool (*status)(void);
 		} interrupt;
-#endif
 	} fn;
 } gy521_s;
 
@@ -226,5 +203,7 @@ typedef struct gy521_s{
  * Initializes the I²C connection and default configuration.
  * Returns a fully initialized gy521_s struct with function pointers and default values.
  */
-gy521_s gy521_init(uint8_t addr);
+gy521_s gy521_init(i2c_inst_t *i2c_port, uint8_t addr);
 bool gy521_use(gy521_s *device);
+bool gy521_write_register(uint8_t *data, uint8_t how_many);
+bool gy521_read_reg(uint8_t reg, uint8_t *out, uint8_t how_many);

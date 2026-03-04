@@ -19,22 +19,52 @@
 #define GY521_XA_TEST_A		(3 << 4)
 
 #define GY521_REG_SMPLRT_DIV		0x19
+typedef enum {
+    GY521_SMPLRT_8KHZ =		(0 << 0),
+    GY521_SMPLRT_1KHZ =		(0x7 << 0),
+    GY521_SMPLRT_200HZ =	(0x27 << 0)   // 39 decimal = 0x27
+} gy521_smplrt_div_t;
 
 #define GY521_REG_CONFIG		0x1A
-#define GY521_DLPF_CFG		(7 << 0)
-#define GY521_EXT_SYNC_SET	(7 << 3)
+typedef enum {
+	GY521_DLPF_CFG_260HZ =	(0 << 0),  // DLPF off, BW=260Hz, Fs=8kHz Gyro / 1kHz Accel
+	GY521_DLPF_CFG_184HZ =	(1 << 0),
+	GY521_DLPF_CFG_94HZ =	(2 << 0),
+	GY521_DLPF_CFG_44HZ =	(3 << 0),
+	GY521_DLPF_CFG_21HZ =	(4 << 0),
+	GY521_DLPF_CFG_10HZ =	(5 << 0),
+	GY521_DLPF_CFG_5HZ =	(6 << 0),
+	GY521_DLPF_CFG_3600HZ =	(7 << 0)   // Gyro only
+} gy521_dlpf_cfg_t;
+
+typedef enum {
+	GY521_EXT_SYNC_DISABLED =	(0 << 3),
+	GY521_EXT_SYNC_TEMP_OUT =	(1 << 3),
+	GY521_EXT_SYNC_XG =		(2 << 3),
+	GY521_EXT_SYNC_YG =		(3 << 3),
+	GY521_EXT_SYNC_ZG =		(4 << 3),
+	GY521_EXT_SYNC_ACCEL_X =	(5 << 3),
+	GY521_EXT_SYNC_ACCEL_Y =	(6 << 3),
+	GY521_EXT_SYNC_ACCEL_Z =	(7 << 3)
+} gy521_ext_sync_set_t;
 
 #define GY521_REG_GYRO_CONFIG		0x1B
-#define GY521_FSR_250DPS		(0 << 3)
-#define GY521_FSR_500DPS		(1 << 3)
-#define GY521_FSR_1000DPS		(2 << 3)
-#define GY521_FSR_2000DPS		(3 << 3)
+typedef enum {
+	GY521_FSR_250DPS =	(0 << 3),
+	GY521_FSR_500DPS =	(1 << 3),
+	GY521_FSR_1000DPS =	(2 << 3),
+	GY521_FSR_2000DPS =	(3 << 3),
+} gy521_fsr_t;
+
 
 #define GY521_REG_ACCEL_CONFIG		0x1C
-#define GY521_AFSR_2G			(0 << 3)
-#define GY521_AFSR_4G			(1 << 3)
-#define GY521_AFSR_8G			(2 << 3)
-#define GY521_AFSR_16G			(3 << 3)
+typedef enum {
+	GY521_AFSR_2G =		(0 << 3),
+	GY521_AFSR_4G =		(1 << 3),
+	GY521_AFSR_8G =		(2 << 3),
+	GY521_AFSR_16G =	(3 << 3),
+} gy521_afsr_t;
+
 #define GY521_ZA_ST		(1 << 5)
 #define GY521_YA_ST		(1 << 6)
 #define GY521_XA_ST		(1 << 7)
@@ -235,13 +265,15 @@
 #define GY521_FIFO_EN		(1 << 6)
 
 #define GY521_REG_PWR_MGMT_1		0x6B
-#define GY521_CLKSEL_8MHZ		(0 << 0)
-#define GY521_CLKSEL_PLL_XG		(1 << 0)
-#define GY521_CLKSEL_PLL_YG		(2 << 0)
-#define GY521_CLKSEL_PLL_ZG		(3 << 0)
-#define GY521_CLKSEL_PLL_EXT_32_768KHZ	(4 << 0)
-#define GY521_CLKSEL_PLL_EXT_19_2MHZ	(5 << 0)
-#define GY521_CLKSEL_STOP		(7 << 0)
+typedef enum {
+	GY521_CLK_INTERNAL =	(0 << 0),
+	GY521_CLK_XGYRO =	(1 << 0),
+	GY521_CLK_YGYRO =	(2 << 0),
+	GY521_CLK_ZGYRO =	(3 << 0),
+	GY521_CLK_EXT32KHZ =	(4 << 0),
+	GY521_CLK_EXT19MHZ =	(5 << 0),
+	GY521_CLK_STOP =	(7 << 0)
+} gy521_clk_sel_t;
 #define GY521_TEMP_DIS		(1 << 3)
 #define GY521_CYCLE		(1 << 5)
 #define GY521_SLEEP		(1 << 6)
