@@ -64,7 +64,7 @@
 #endif
 
 #ifndef GY521_INT_PIN
-#define GY521_INT_PIN 24  // Optional interrupt pin (0 and the interrupt parts are not loaded)
+#define GY521_INT_PIN 26  // Optional interrupt pin (0 and the interrupt parts are not loaded)
 #endif
 
 #define GY521_I2C_ADDR_GND 0x68 // Default I2C address for GY-521(MPU-6050) (AD0 pin -> Gnd)
