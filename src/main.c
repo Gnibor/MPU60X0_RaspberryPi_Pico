@@ -35,6 +35,14 @@
 #include "default.h"
 #include "gy521.h"
 
+volatile bool mpu_irq_flag = false;
+
+void gy521_irq_handler(uint gpio, uint32_t events){
+    if(gpio == GY521_INT_PIN){
+        mpu_irq_flag = true;
+    }
+}
+
 int main(void){
 	stdio_init_board();
 	gy521_s gy521 = gy521_init(i2c1, GY521_I2C_ADDR_GND);
@@ -76,12 +84,33 @@ int main(void){
 	else printf("GY-521 could not be calibrated.\n");
 
 	printf("how big is it?: %d\n", sizeof(gy521));
+
+	// INT Pin Konfiguration im MPU
+    gy521.fn.interrupt.pin_cfg(
+        GY521_INT_LEVEL_LOW | // Pegel statt Puls
+        GY521_INT_OPEN_DRAIN   | // Push-Pull / Open-Drain (je nach Definition: hier Push-Pull)
+        GY521_LATCH_INT_EN    | // Latch Interrupt aktiv
+        GY521_INT_RD_CLEAR // Interrupt beim Lesen zurücksetzen
+    );
+
+    // Data Ready Interrupt aktivieren
+    gy521.fn.interrupt.enable(GY521_DATA_RDY_INT);
+
+gpio_set_irq_enabled_with_callback(
+        GY521_INT_PIN,
+        GPIO_IRQ_EDGE_RISE,
+        true,
+        &gy521_irq_handler
+    );
+
 	while(1){
-		if(gy521.fn.read_sensor(GY521_ALL | GY521_SCALED))
-			printf("G=X:%6.3f Y:%6.3f Z:%6.3f | °C=%6.2f | °/s=X:%9.3f Y:%9.3f Z:%9.3f\n", 
-				gy521.v.accel.g.x, gy521.v.accel.g.y, gy521.v.accel.g.z, 
-				gy521.v.temp.celsius, 
-				gy521.v.gyro.dps.x, gy521.v.gyro.dps.y, gy521.v.gyro.dps.z);
-		sleep_ms(500);
+		if(gy521.fn.interrupt.status())
+			if(gy521.v.interrupt.data_rdy)
+				if(gy521.fn.read_sensor(GY521_ALL | GY521_SCALED))
+					printf("G=X:%6.3f Y:%6.3f Z:%6.3f | °C=%6.2f | °/s=X:%9.3f Y:%9.3f Z:%9.3f\n", 
+						gy521.v.accel.g.x, gy521.v.accel.g.y, gy521.v.accel.g.z, 
+						gy521.v.temp.celsius, 
+						gy521.v.gyro.dps.x, gy521.v.gyro.dps.y, gy521.v.gyro.dps.z);
+		sleep_ms(100);
 	}
 }
