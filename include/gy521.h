@@ -42,7 +42,7 @@
 #include "hardware/i2c.h"
 #include <stdint.h>
 #include <sys/types.h>
-#include "gy521_reg_map.h"
+#include "MPU-60X0_reg_map.h"
 
 // =============================
 // === Configurable Hardware ===
@@ -80,10 +80,18 @@
  * 2 = temperature only
  * 3 = gyro only
  */
-#define GY521_ALL 0
-#define GY521_ACCEL 1
-#define GY521_TEMP 2
-#define GY521_GYRO 3
+//#define GY521_ALL 0
+//#define GY521_ACCEL 1
+//#define GY521_TEMP 2
+//#define GY521_GYRO 3
+
+typedef enum{
+	GY521_ACCEL = (1 << 0),
+	GY521_TEMP = (1 << 1),
+	GY521_GYRO = (1 << 2),
+	GY521_ALL = (GY521_ACCEL | GY521_TEMP | GY521_GYRO),
+	GY521_SCALED = (1 << 3)
+} gy521_sensors_t;
 
 // =======================
 // === Data Structures ===
@@ -178,7 +186,7 @@ typedef struct gy521_s{
 		bool (*test_connection)(void);
 		bool (*reset)(void);
 		bool (*sleep)(bool device, bool temp);
-		bool (*read_sensor)(uint8_t, bool);
+		bool (*read_sensor)(uint8_t);
 		bool (*fsr)(uint8_t, uint8_t);
 		bool (*stby)(void);
 		bool (*smplrt_div)(uint8_t div);

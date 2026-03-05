@@ -26,7 +26,7 @@
  *
  * ================================================================
  */
-#include "gy521_reg_map.h"
+#include "MPU-60X0_reg_map.h"
 #include "pico/stdlib.h"
 #include <stdbool.h>
 #include <stdio.h>
@@ -66,19 +66,16 @@ int main(void){
 	//gy521.conf.temp.sleep = true;
 	//if(gy521.fn.sleep()) printf("temp in standby\n");
 
-	gy521.fn.fsr(GY521_DPS_2000, GY521_AFSR_8G);
+	gy521.fn.fsr(GY521_FSR_2000DPS, GY521_AFSR_8G);
 
 	printf("Try to calibrate GY-521\n");
 	sleep_ms(2000);
 	if(gy521.fn.gyro.calibrate(10)) printf("GY-521 is now calibrated.\n");
 	else printf("GY-521 could not be calibrated.\n");
 
-	printf("you gave in = 0x0%d\n", GY521_DLPF_CFG(4));
-	printf("You gave in = 0x%d%d << 3\n", (GY521_EXT_SYNC_SET(3) / 16), (GY521_EXT_SYNC_SET(3) % 16));
-
 	printf("how big is it?: %d\n", sizeof(gy521));
 	while(1){
-		if(gy521.fn.read_sensor(0, true))
+		if(gy521.fn.read_sensor(GY521_ALL | GY521_SCALED))
 			printf("G=X:%6.3f Y:%6.3f Z:%6.3f | °C=%6.2f | °/s=X:%9.3f Y:%9.3f Z:%9.3f\n", 
 				gy521.v.accel.g.x, gy521.v.accel.g.y, gy521.v.accel.g.z, 
 				gy521.v.temp.celsius, 
