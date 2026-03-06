@@ -41,6 +41,7 @@ int main(void){
 	gy521_use(&gy521);
 
 	if(gy521.fn.device_reset()) printf("__!Device resetted!__\n");
+	sleep_ms(50);
 	int retries = 3;
 	bool connected = false;
 	printf("Try connecting GY-521...\n");
@@ -56,40 +57,45 @@ int main(void){
 
 	if(!gy521.fn.sleep(false,false)) printf("sleep did not get deactivated!!!\n");
 	else printf("sleep is deactivated!\n");
+	sleep_ms(10);
 
-	if(!gy521.fn.fsr(GY521_FSR_2000DPS, GY521_AFSR_8G)) printf("Could not set the SFR/AFSR\n");
+	if(!gy521.fn.fsr(GY521_FSR_500DPS, GY521_AFSR_2G)) printf("Could not set the SFR/AFSR\n");
 	else printf("FSR=2000dps, AFSR=8g\n");
 
 	printf("Try to calibrate GY-521\n");
 	sleep_ms(2000);
-	if(gy521.fn.gyro.calibrate(10)) printf("GY-521 is now calibrated.\n");
-	else printf("GY-521 could not be calibrated.\n");
+	if(gy521.fn.gyro_calibrate(10)) printf("GY-521 gyro is now calibrated.\n");
+	else printf("GY-521 gyro could not be calibrated.\n");
+
 
 	printf("how big is the struct: %dbytes\n", sizeof(gy521));
 
-	if(!gy521.fn.stby(GY521_STBY_YA)) printf("Could not set stand-by for YA!!!\n");
-	else printf("YA is now stand-by!\n");
+	//if(!gy521.fn.stby(GY521_STBY_YG)) printf("Could not set stand-by for YA!!!\n");
+	//else printf("YA is now stand-by!\n");
 
 	// INT Pin configuration in the GY521
-	gy521.fn.interrupt.pin_cfg(
+	/*gy521.fn.interrupt.pin_cfg(
 		GY521_INT_LEVEL_LOW  | // 1 = Level, 0 = pulse
 		GY521_INT_OPEN_DRAIN | // 1 = Push-Pull, 0 = Open-Drain
 		GY521_LATCH_INT_EN   | // Latch Interrupt active
 		GY521_INT_RD_CLEAR     // Interrupt cleared by reading the fn.interrupt.status()
-	);
+	);*/
+
+	if(gy521.fn.cycle(GY521_CYCLE_LP, GY521_LP_WAKE_1_25HZ)) printf("Enable Cycle mode!!!\n");
+	//else printf("Could not enable Cycle mode!!!\n");
+	sleep_ms(10);
 
 	// Data ready interrupt activate
-	gy521.fn.interrupt.enable(GY521_DATA_RDY_INT);
-
+	//gy521.fn.interrupt.enable(GY521_DATA_RDY_EN);
 
 	while(1){
-		if(gy521.fn.interrupt.status()){
-			if(gy521.fn.read_sensor(GY521_ALL | GY521_SCALED))
+	//	if(gy521.fn.interrupt.status()){
+			if(gy521.fn.read_sensor(GY521_ACCEL | GY521_SCALED))
 				printf("G=X:%6.3f Y:%6.3f Z:%6.3f | °C=%6.2f | °/s=X:%9.3f Y:%9.3f Z:%9.3f\n", 
 					gy521.v.accel.g.x, gy521.v.accel.g.y, gy521.v.accel.g.z, 
 					gy521.v.temp.celsius, 
 					gy521.v.gyro.dps.x, gy521.v.gyro.dps.y, gy521.v.gyro.dps.z);
-		}
-		sleep_ms(100);
+	//	}
+		sleep_ms(400);
 	}
 }

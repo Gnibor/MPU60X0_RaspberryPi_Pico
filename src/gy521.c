@@ -41,6 +41,7 @@ bool gy521_who_am_i(void);
 bool gy521_device_reset(void);
 bool gy521_sleep(bool device, bool temp); // Set sleep configuration
 bool gy521_stby(uint8_t stby);
+bool gy521_cycle_mode(gy521_cycle_t mode, uint8_t smplrt_wake);
 bool gy521_fsr(gy521_fsr_t fsr, gy521_afsr_t afsr);
 bool gy521_calibrate_gyro(uint8_t sample); // calibrate gyro offsets (sample=10)
 bool gy521_read_sensor(gy521_sensors_t sensors); // 0=all 1=accel 2=temp 3=gyro
@@ -59,9 +60,10 @@ static int g_gy521_ret_cache = 0; // Temporary buffer for return values
 
 #if GY521_INT_PIN
 volatile bool mpu_irq_flag = false;
-
+volatile uint32_t irq_event = 0;
 void gy521_irq_handler(uint gpio, uint32_t events){
     if(gpio == GY521_INT_PIN){
+	irq_event = events;
         mpu_irq_flag = true;
     }
 }
@@ -107,13 +109,14 @@ gy521_s gy521_init(i2c_inst_t *i2c_port, uint8_t addr){
 	if(!addr) gy521.conf.addr = GY521_I2C_ADDR_GND;
 	else gy521.conf.addr = addr;
 
-	gy521.conf.fsr_div.accel = 131.0f;
-	gy521.conf.fsr_div.gyro = 16384.0f;
+	gy521.conf.fsr_div.accel = 16384.0f;
+	gy521.conf.fsr_div.gyro = 131.0f;
 	gy521.fn.device_reset = &gy521_device_reset;
 	gy521.fn.sleep = &gy521_sleep;
+	gy521.fn.cycle = &gy521_cycle_mode;
 	gy521.fn.who_am_i = &gy521_who_am_i;
 	gy521.fn.read_sensor = &gy521_read_sensor;
-	gy521.fn.gyro.calibrate = &gy521_calibrate_gyro;
+	gy521.fn.gyro_calibrate = &gy521_calibrate_gyro;
 	gy521.fn.fsr = &gy521_fsr;
 	gy521.fn.stby = &gy521_stby;
 #if GY521_INT_PIN
@@ -167,6 +170,8 @@ bool gy521_device_reset(void){
 
 	if(!gy521_write_register((uint8_t[]){GY521_REG_PWR_MGMT_1, g_gy521_cache[0]}, 2, false)) return false;
 
+	sleep_ms(50); // Needed time for the reset
+
 	return true;
 }
 
@@ -186,13 +191,74 @@ bool gy521_sleep(bool device, bool temp){
 
 	if(!gy521_write_register((uint8_t[]){GY521_REG_PWR_MGMT_1, g_gy521_cache[0]}, 2, false)) return false;
 
+	sleep_ms(10); // Activation pause
+
 	return true;
 }
 
+// ==================
+// === Cycle Mode ===	Low-Power Mode still work in progress
+// ==================
+/*
+ * Set the MPU-6050 cycle mode.
+ *
+ * Parameters:
+ *  - mode:         Select normal cycle mode, low-power cycle mode, or disable cycle.
+ *  - smplrt_wake:  Determines the wake-up frequency or the sample-rate divider.
+ *                  * For low-power cycle mode, use the predefined gy521_lp_wake_t enum
+ *                    for common frequencies (e.g., 1.25Hz, 5Hz, 10Hz, 20Hz, 40Hz).
+ *                  * For normal cycle mode use gy521_splrt_div_t enum or use custom rates, any value 0-255 is valid.
+ *                    The effective sample rate will be calculated as:
+ *                      SampleRate = GyroOutputRate / (1 + smplrt_wake)
+ *                    where GyroOutputRate = 8kHz or 1kHz depending on the FCHOICE settings.
+ *
+ * Notes:
+ *  - In low-power mode, all gyroscope axes are automatically put into standby.
+ *  - The function updates both PWR_MGMT_1 and PWR_MGMT_2 registers in a single I2C transaction.
+ *  - This allows flexible wake frequencies while preserving efficient register writes.
+ */
+bool gy521_cycle_mode(gy521_cycle_t mode, uint8_t smplrt_wake){
+	// Read current power management registers (PWR_MGMT_1 and PWR_MGMT_2)
+	if(!gy521_read_register(GY521_REG_PWR_MGMT_1, g_gy521_cache, 2, true)) return false;
+
+	// Enable or disable cycle mode
+	if(mode == GY521_CYCLE_ON || mode == GY521_CYCLE_LP){
+		g_gy521_cache[0] |= GY521_CYCLE;
+
+		// Standard cycle mode: set sample rate divider
+		if(mode != GY521_CYCLE_LP){
+			// smplrt_wake = divider for wake-up frequency: freq = 1 kHz / (divider + 1)
+			if(!gy521_write_register((uint8_t[]){GY521_REG_SMPLRT_DIV, smplrt_wake}, 2, true)) return false;
+		// Low-power cycle mode
+		}else if(mode == GY521_CYCLE_LP){
+			g_gy521_cache[0] |= GY521_SLEEP; // Put device in sleep, accelerometer wakes up periodically
+
+			g_gy521_cache[1] &= ~GY521_LP_WAKE_40HZ; // Clear previous wake-up frequency bits
+			g_gy521_cache[1] |= smplrt_wake;  // Set new low-power wake-up frequency
+			g_gy521_cache[1] |= GY521_STBY_GYRO; // Keep gyro in standby during LP cycle
+		}
+	}else{
+		g_gy521_cache[0] &= ~GY521_CYCLE;  // Clear CYCLE bit
+		g_gy521_cache[0] &= ~GY521_SLEEP;
+		g_gy521_cache[1] &= ~GY521_LP_WAKE_40HZ; // Clear LP wake frequency bits
+		g_gy521_cache[1] &= ~GY521_STBY_GYRO; // Reactivate gyro if it was in standby
+	}
+
+	// Write back updated registers
+	if(!gy521_write_register((uint8_t[]){GY521_REG_PWR_MGMT_1, g_gy521_cache[0], g_gy521_cache[1]}, 3, false)) return false;
+
+	sleep_ms(10); // Activation pause
+
+	return true;
+}
+
+// =====================
+// === Stand-By Mode ===
+// =====================
 bool gy521_stby(uint8_t stby){
 	if(!gy521_read_register(GY521_REG_PWR_MGMT_2, g_gy521_cache, 1, true)) return false;
 
-	g_gy521_cache[0] &= ~0x3F;
+	g_gy521_cache[0] &= ~GY521_STBY_ALL;
 	g_gy521_cache[0] |= stby;
 
 	if(!gy521_write_register((uint8_t[]){GY521_REG_PWR_MGMT_2, g_gy521_cache[0]}, 2, false)) return false;
@@ -222,7 +288,7 @@ bool gy521_int_pin_cfg(uint8_t cfg){
 bool gy521_int_enable(uint8_t cfg){
 	if(!gy521_read_register(GY521_REG_INT_ENABLE, g_gy521_cache, 1, true)) return false;
 
-	g_gy521_cache[0] &= ~0x19;
+	g_gy521_cache[0] &= ~GY521_INT_PIN_CFG_ALL;
 	g_gy521_cache[0] |= cfg;
 
 	// Write back to registers
@@ -256,7 +322,7 @@ bool gy521_fsr(gy521_fsr_t fsr, gy521_afsr_t afsr){
 	if(!gy521_read_register(GY521_REG_GYRO_CONFIG, g_gy521_cache, 2, true)) return false;
 	
 	// Gyro FSR bits
-	g_gy521_cache[0] &= ~0x18; // Delete bits 4:3
+	g_gy521_cache[0] &= ~GY521_FSR_2000DPS; // Delete bits 4:3
 	g_gy521_cache[0] |= fsr; // Set FSR Bits
 
 	// Automatic scaling calculation:
@@ -264,7 +330,7 @@ bool gy521_fsr(gy521_fsr_t fsr, gy521_afsr_t afsr){
 	g_gy521->conf.fsr_div.gyro = 131.0f / (1 << ((fsr >> 3) & 0x03));
 
 	// Accel FSR bits
-	g_gy521_cache[1] &= ~0x18;
+	g_gy521_cache[1] &= ~GY521_AFSR_16G;
 	g_gy521_cache[1] |= afsr;
 
 	// Automatic scaling calculation (raw / divider = G)
@@ -281,22 +347,21 @@ bool gy521_fsr(gy521_fsr_t fsr, gy521_afsr_t afsr){
 // ====================================================
 bool gy521_calibrate_gyro(uint8_t samples){
 	if(!g_gy521) return false;
-	gy521_axis_raw_t raw;
 	
 	int64_t sum_gx = 0;
 	int64_t sum_gy = 0;
 	int64_t sum_gz = 0;
 
-	for (uint8_t i = 0; i < samples; i++){
+	for(uint8_t i = 0; i < samples; i++){
 		if(!gy521_read_register(GY521_REG_GYRO_XOUT_H, g_gy521_cache, 6, false)) return false;
 
-		raw.x = (g_gy521_cache[0]  << 8) | g_gy521_cache[1];
-		raw.y = (g_gy521_cache[2]  << 8) | g_gy521_cache[3];
-		raw.z = (g_gy521_cache[4]  << 8) | g_gy521_cache[5];
+		g_gy521->v.gyro.raw.x = (g_gy521_cache[0]  << 8) | g_gy521_cache[1];
+		g_gy521->v.gyro.raw.y = (g_gy521_cache[2]  << 8) | g_gy521_cache[3];
+		g_gy521->v.gyro.raw.z = (g_gy521_cache[4]  << 8) | g_gy521_cache[5];
 
-		sum_gx += raw.x;
-		sum_gy += raw.y;
-		sum_gz += raw.z;
+		sum_gx += g_gy521->v.gyro.raw.x;
+		sum_gy += g_gy521->v.gyro.raw.y;
+		sum_gz += g_gy521->v.gyro.raw.z;
 
 		sleep_ms(5); // small delay between measurements
 	}
@@ -359,9 +424,9 @@ bool gy521_read_sensor(gy521_sensors_t sensors){
 	if(sensors & GY521_SCALED){
 		// Raw -> G for accelerometer
 		if(mask & GY521_ACCEL){
-			g_gy521->v.accel.g.x = g_gy521->v.accel.raw.x / g_gy521->conf.fsr_div.accel;
-			g_gy521->v.accel.g.y = g_gy521->v.accel.raw.y / g_gy521->conf.fsr_div.accel;
-			g_gy521->v.accel.g.z = g_gy521->v.accel.raw.z / g_gy521->conf.fsr_div.accel;
+			g_gy521->v.accel.g.x = (g_gy521->v.accel.raw.x - g_gy521->conf.accel_offset.x) / g_gy521->conf.fsr_div.accel;
+			g_gy521->v.accel.g.y = (g_gy521->v.accel.raw.y - g_gy521->conf.accel_offset.y) / g_gy521->conf.fsr_div.accel;
+			g_gy521->v.accel.g.z = (g_gy521->v.accel.raw.z - g_gy521->conf.accel_offset.z) / g_gy521->conf.fsr_div.accel;
 		}
 		// Raw -> °C
 		if(mask & GY521_TEMP)

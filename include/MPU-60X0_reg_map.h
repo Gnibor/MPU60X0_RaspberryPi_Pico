@@ -20,9 +20,9 @@
 
 #define GY521_REG_SMPLRT_DIV		0x19
 typedef enum {
-    GY521_SMPLRT_8KHZ =			(0 << 0),
-    GY521_SMPLRT_1KHZ =			(0x7 << 0),
-    GY521_SMPLRT_200HZ =		(0x27 << 0)   // 39 decimal = 0x27
+	GY521_SMPLRT_8KHZ =		(0 << 0),
+	GY521_SMPLRT_1KHZ =		(0x7 << 0),
+	GY521_SMPLRT_200HZ =		(0x27 << 0)   // 39 decimal = 0x27
 } gy521_smplrt_div_t;
 
 #define GY521_REG_CONFIG		0x1A
@@ -180,22 +180,24 @@ typedef enum {
 
 #define GY521_REG_INT_PIN_CFG		0x37
 typedef enum {
-    GY521_I2C_BYPASS_EN   = (1 << 1),
-    GY521_FSYNC_INT_EN        = (1 << 2),
-    GY521_FSYNC_INT_LEVEL     = (1 << 3),
-    GY521_INT_RD_CLEAR        = (1 << 4),
-    GY521_LATCH_INT_EN        = (1 << 5),
-    GY521_INT_OPEN_DRAIN      = (1 << 6),
-    GY521_INT_LEVEL_LOW       = (1 << 7),
+    GY521_I2C_BYPASS_EN   =		(1 << 1),
+    GY521_FSYNC_INT_EN    =		(1 << 2),
+    GY521_FSYNC_INT_LEVEL =		(1 << 3),
+    GY521_INT_RD_CLEAR    =		(1 << 4),
+    GY521_LATCH_INT_EN    =		(1 << 5),
+    GY521_INT_OPEN_DRAIN  =		(1 << 6),
+    GY521_INT_LEVEL_LOW   =		(1 << 7),
 
-    GY521_INT_PIN_CFG_ALL     = 0xFE  // alle Bits außer Bit 0 (falls reserviert)
+    GY521_INT_PIN_CFG_ALL =		0xFE  // alle Bits außer Bit 0 (falls reserviert)
 } gy521_int_pin_cfg_t;
 
 #define GY521_REG_INT_ENABLE		0x38
-#define GY521_DATA_RDY_EN		(1 << 0)
-#define GY521_I2C_MST_INT_EN		(1 << 3)
-#define GY521_FIFO_OFLOW_EN		(1 << 4)
-
+typedef enum{
+	GY521_DATA_RDY_EN    =		(1 << 0),
+	GY521_I2C_MST_INT_EN =		(1 << 3),
+	GY521_FIFO_OFLOW_EN  =		(1 << 4),
+	GY521_INT_ENABLE_ALL =		0x19
+} gy521_int_enable_t;
 #define GY521_REG_INT_STATUS		0x3A
 #define GY521_DATA_RDY_INT		(1 << 0)
 #define GY521_I2C_MST_INT		(1 << 3)
@@ -277,6 +279,11 @@ typedef enum {
 } gy521_clk_sel_t;
 #define GY521_TEMP_DIS			(1 << 3)
 #define GY521_CYCLE			(1 << 5)
+typedef enum{
+	GY521_CYCLE_LP  =		2,
+	GY521_CYCLE_ON  =		1,
+	GY521_CYCLE_OFF =		0
+} gy521_cycle_t;
 #define GY521_SLEEP			(1 << 6)
 #define GY521_DEVICE_RESET		(1 << 7)
 
@@ -286,9 +293,9 @@ typedef enum{
 	GY521_STBY_ZG =			(1 << 0),
 	GY521_STBY_YG =			(1 << 1),
 	GY521_STBY_XG =			(1 << 2),
-	GY521_STBY_ZA =			(1 << 3),
-	GY521_STBY_YA =			(1 << 4),
-	GY521_STBY_XA =			(1 << 5)
+	GY521_STBY_GYRO =		(7 << 0),
+	GY521_STBY_ACCEL =		(7 << 3),
+	GY521_STBY_ALL =		(0x3F)
 } gy521_stby_t;
 
 typedef enum {

@@ -152,7 +152,7 @@ typedef struct gy521_s{
 		uint8_t addr; // Device Address
 		uint8_t *cache;
 		uint8_t clksel;
-		gy521_offset_t gyro_offset;
+		gy521_offset_t gyro_offset, accel_offset;
 
 		struct{
 			float accel, gyro;
@@ -169,18 +169,18 @@ typedef struct gy521_s{
 		bool (*read_sensor)(gy521_sensors_t);
 		bool (*fsr)(gy521_fsr_t, gy521_afsr_t);
 		bool (*stby)(uint8_t);
+		bool (*cycle)(gy521_cycle_t, uint8_t);
 		bool (*smplrt_div)(uint8_t div);
 		bool (*device_reset)(void);
+		bool (*gyro_calibrate)(uint8_t);
 
-		struct{
-			bool (*calibrate)(uint8_t);
-		} gyro;
-
+#if GY521_INT_PIN
 		struct{
 			bool (*pin_cfg)(uint8_t cfg);
 			bool (*enable)(uint8_t cfg);
 			bool (*status)(void);
 		} interrupt;
+#endif
 	} fn;
 } gy521_s;
 
@@ -196,3 +196,4 @@ gy521_s gy521_init(i2c_inst_t *i2c_port, uint8_t addr);
 bool gy521_use(gy521_s *device);
 bool gy521_write_register(uint8_t *data, uint8_t how_many, bool block);
 bool gy521_read_reg(uint8_t reg, uint8_t *out, uint8_t how_many, bool block);
+void gy521_irq_handler(uint gpio, uint32_t events);
