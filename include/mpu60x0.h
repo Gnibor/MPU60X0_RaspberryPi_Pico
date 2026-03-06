@@ -47,32 +47,32 @@
 // =============================
 // === Configurable Hardware ===
 // =============================
-#ifndef MPU60X0_I2C_PORT
-#define MPU60X0_I2C_PORT i2c1 // Default I2C port
+#ifndef MPU_I2C_PORT
+#define MPU_I2C_PORT i2c1 // Default I2C port
 #endif
 
-#ifndef MPU60X0_SDA_PIN
-#define MPU60X0_SDA_PIN 6    // Default SDA pin (can be overridden)
+#ifndef MPU_SDA_PIN
+#define MPU_SDA_PIN 6    // Default SDA pin (can be overridden)
 #endif
 
-#ifndef MPU60X0_SCL_PIN
-#define MPU60X0_SCL_PIN 7   // Default SCL pin (can be overridden)
+#ifndef MPU_SCL_PIN
+#define MPU_SCL_PIN 7   // Default SCL pin (can be overridden)
 #endif
 
-#ifndef MPU60X0_USE_PULLUP
-#define MPU60X0_USE_PULLUP 1 // 1 = enable internal pull-up, 0 = disabled
+#ifndef MPU_USE_PULLUP
+#define MPU_USE_PULLUP 1 // 1 = enable internal pull-up, 0 = disabled
 #endif
 
-#ifndef MPU60X0_INT_PIN
-#define MPU60X0_INT_PIN 26  // Optional interrupt pin (0 and the interrupt parts are not loaded)
+#ifndef MPU_INT_PIN
+#define MPU_INT_PIN 26  // Optional interrupt pin (0 and the interrupt parts are not loaded)
 #endif
 
-#ifndef MPU60X0_INT_PULLUP
-#define MPU60X0_INT_PULLUP 0
+#ifndef MPU_INT_PULLUP
+#define MPU_INT_PULLUP 0
 #endif
 
-#define MPU60X0_I2C_ADDR_GND 0x68 // Default I2C address for GY-521(MPU-6050) (AD0 pin -> Gnd)
-#define MPU60X0_I2C_ADDR_VCC 0x69 // Default I2C address for GY-521(MPU-6050) (AD0 pin -> Vcc)
+#define MPU_I2C_ADDR_GND 0x68 // Default I2C address for GY-521(MPU-6050) (AD0 pin -> Gnd)
+#define MPU_I2C_ADDR_VCC 0x69 // Default I2C address for GY-521(MPU-6050) (AD0 pin -> Vcc)
 
 
 /*
@@ -207,7 +207,7 @@ bool mpu_cycle_mode(mpu_cycle_t mode, uint8_t smplrt_wake);
 bool mpu_fsr(mpu60x0_fsr_t fsr, mpu60x0_afsr_t afsr);
 bool mpu_calibrate_gyro(uint8_t sample); // calibrate gyro offsets (sample=10)
 bool mpu_read_sensor(mpu_sensors_t sensors); // 0=all 1=accel 2=temp 3=gyro
-#if MPU60X0_INT_PIN
+#if MPU_INT_PIN
 void mpu_irq_handler(uint gpio, uint32_t events);
 bool mpu_int_pin_cfg(uint8_t cfg);
 bool mpu_int_enable(uint8_t cfg);

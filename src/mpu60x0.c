@@ -45,10 +45,10 @@ static mpu_s *g_mpu = NULL; // Global pointer to the aktiv MPU60X0-Device
 static uint8_t g_mpu_cache[14] = {0}; // Temporary buffer for I2C reads
 static int g_mpu_ret_cache = 0; // Temporary buffer for return values
 
-#if MPU60X0_INT_PIN
+#if MPU_INT_PIN
 volatile bool g_mpu_int_flag;
 void mpu_irq_handler(uint gpio, uint32_t events){
-    if(gpio == MPU60X0_INT_PIN){
+    if(gpio == MPU_INT_PIN){
         g_mpu_int_flag = true;
     }
 }
@@ -70,20 +70,20 @@ bool mpu_use_struct(mpu_s *device){
 // === Initialize MPU60X0 ===
 // ========================
 mpu_s mpu_init(i2c_inst_t *i2c_port, uint8_t addr){
-	i2c_init(MPU60X0_I2C_PORT, 400 * 1000); // 400 kHz I2C
-	gpio_set_function(MPU60X0_SDA_PIN, GPIO_FUNC_I2C);
-	gpio_set_function(MPU60X0_SCL_PIN, GPIO_FUNC_I2C);
+	i2c_init(MPU_I2C_PORT, 400 * 1000); // 400 kHz I2C
+	gpio_set_function(MPU_SDA_PIN, GPIO_FUNC_I2C);
+	gpio_set_function(MPU_SCL_PIN, GPIO_FUNC_I2C);
 
-#if MPU60X0_USE_PULLUP
-	gpio_pull_up(MPU60X0_SDA_PIN);
-	gpio_pull_up(MPU60X0_SCL_PIN);
+#if MPU_USE_PULLUP
+	gpio_pull_up(MPU_SDA_PIN);
+	gpio_pull_up(MPU_SCL_PIN);
 #endif
 
 	// Configure optional interrupt pin
-	gpio_init(MPU60X0_INT_PIN);
-	gpio_set_dir(MPU60X0_INT_PIN, GPIO_IN);
-#if MPU60X0_INT_PULLUP
-	gpio_pull_up(MPU60X0_INT_PIN);
+	gpio_init(MPU_INT_PIN);
+	gpio_set_dir(MPU_INT_PIN, GPIO_IN);
+#if MPU_INT_PULLUP
+	gpio_pull_up(MPU_INT_PIN);
 #endif
 
 	mpu_s mpu; // Initalize device struct and function pointers
@@ -91,7 +91,7 @@ mpu_s mpu_init(i2c_inst_t *i2c_port, uint8_t addr){
 
 	mpu.conf.i2c_port = i2c_port;
 
-	if(!addr) mpu.conf.addr = MPU60X0_I2C_ADDR_GND;
+	if(!addr) mpu.conf.addr = MPU_I2C_ADDR_GND;
 	else mpu.conf.addr = addr;
 
 	mpu.conf.fsr_div.accel = 16384.0f;
@@ -120,7 +120,7 @@ bool mpu_read_register(uint8_t reg, uint8_t *out, uint8_t how_many, bool block){
 
 	if(!mpu_write_register(&reg, 1, true)) return false;
 
-	g_mpu_ret_cache = i2c_read_blocking(MPU60X0_I2C_PORT, g_mpu->conf.addr, out, how_many, block);
+	g_mpu_ret_cache = i2c_read_blocking(MPU_I2C_PORT, g_mpu->conf.addr, out, how_many, block);
 	if(g_mpu_ret_cache != how_many) return false;
 
 	return true;
@@ -252,7 +252,7 @@ bool mpu_dlpf_cfg(mpu60x0_dlpf_cfg_t cfg){
 	return true;
 }
 
-#if MPU60X0_INT_PIN
+#if MPU_INT_PIN
 // ===================================
 // === Interrupt pin configuration ===
 // ===================================
@@ -365,7 +365,7 @@ bool mpu_calibrate_gyro(uint8_t samples){
 bool mpu_read_sensor(mpu_sensors_t sensors){
 	if(!g_mpu) return false;
 	// Read all sensors
-	uint8_t mask = (sensors & MPU60X0_ALL);
+	uint8_t mask = (sensors & MPU_ALL);
 	// If to or more sensors are read it reads all for less overhead.
 	if((mask & (mask - 1))){
 		if(!mpu_read_register(MPU60X0_REG_ACCEL_XOUT_H, g_mpu_cache, 14, false)) return false;
@@ -380,7 +380,7 @@ bool mpu_read_sensor(mpu_sensors_t sensors){
 
 	}else{
 		// Only accelerometer
-		if(mask & MPU60X0_ACCEL){
+		if(mask & MPU_ACCEL){
 			if(!mpu_read_register(MPU60X0_REG_ACCEL_XOUT_H, g_mpu_cache, 6, false)) return false;
 
 			g_mpu->v.accel.raw.x = (g_mpu_cache[0]  << 8) | g_mpu_cache[1];
@@ -389,14 +389,14 @@ bool mpu_read_sensor(mpu_sensors_t sensors){
 
 		}
 		// Only temperatur
-		if(mask & MPU60X0_TEMP){
+		if(mask & MPU_TEMP){
 			if(!mpu_read_register(MPU60X0_REG_TEMP_OUT_H, g_mpu_cache, 2, false)) return false;
 
 			g_mpu->v.temp.raw = (g_mpu_cache[0]  << 8) | g_mpu_cache[1];
 
 		}
 		// Only gyroscope
-		if(mask & MPU60X0_GYRO){
+		if(mask & MPU_GYRO){
 			if(!mpu_read_register(MPU60X0_REG_GYRO_XOUT_H, g_mpu_cache, 6, false)) return false;
 
 			g_mpu->v.gyro.raw.x = (g_mpu_cache[0]  << 8) | g_mpu_cache[1];
@@ -406,18 +406,18 @@ bool mpu_read_sensor(mpu_sensors_t sensors){
 	}
 
 	// Optional: scale raw values
-	if(sensors & MPU60X0_SCALED){
+	if(sensors & MPU_SCALED){
 		// Raw -> G for accelerometer
-		if(mask & MPU60X0_ACCEL){
+		if(mask & MPU_ACCEL){
 			g_mpu->v.accel.g.x = (g_mpu->v.accel.raw.x - g_mpu->conf.accel_offset.x) / g_mpu->conf.fsr_div.accel;
 			g_mpu->v.accel.g.y = (g_mpu->v.accel.raw.y - g_mpu->conf.accel_offset.y) / g_mpu->conf.fsr_div.accel;
 			g_mpu->v.accel.g.z = (g_mpu->v.accel.raw.z - g_mpu->conf.accel_offset.z) / g_mpu->conf.fsr_div.accel;
 		}
 		// Raw -> °C
-		if(mask & MPU60X0_TEMP)
+		if(mask & MPU_TEMP)
 			g_mpu->v.temp.celsius = (g_mpu->v.temp.raw / 340.0f) + 36.53f;
 		// Raw -> °/s for gyroscope
-		if(mask & MPU60X0_GYRO){
+		if(mask & MPU_GYRO){
 			g_mpu->v.gyro.dps.x = (g_mpu->v.gyro.raw.x - g_mpu->conf.gyro_offset.x) / g_mpu->conf.fsr_div.gyro;
 			g_mpu->v.gyro.dps.y = (g_mpu->v.gyro.raw.y - g_mpu->conf.gyro_offset.y) / g_mpu->conf.fsr_div.gyro;
 			g_mpu->v.gyro.dps.z = (g_mpu->v.gyro.raw.z - g_mpu->conf.gyro_offset.z) / g_mpu->conf.fsr_div.gyro;

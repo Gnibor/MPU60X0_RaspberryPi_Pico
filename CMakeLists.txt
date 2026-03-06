@@ -13,7 +13,7 @@ pico_sdk_init()
 add_executable(${PROJECT_NAME}
     src/main.c
     src/default.c
-    src/gy521.c
+    src/mpu60x0.c
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE
