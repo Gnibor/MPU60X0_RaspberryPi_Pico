@@ -159,7 +159,7 @@ And set 'device' as active.
 | `bool mpu_fsr(mpu_fsr_s, mpu_afsr_s)` | Sets full-scale range and updates scaling divider |
 | `bool mpu_stby(mpu_stby_t)` | Enables/disables standby per axis, sensor or all |
 | `bool mpu_read_sensor(mpu_sensor_s)` | Reads sensor data (raw or scaled) |
-| `bool mpu_calibrate_gyro(samples)` | Computes `samples` ***(5-20)*** time to calculate gyro zero-offset |
+| `bool mpu_calibrate_gyro(samples)` | Computes `samples` *(5-20)* time to calculate gyro zero-offset |
 
 #### Interrupt Functions (Experimental)
 
