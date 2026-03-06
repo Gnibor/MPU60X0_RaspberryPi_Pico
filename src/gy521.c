@@ -37,19 +37,7 @@
 // ===========================
 // === Function prototypes ===
 // ===========================
-bool gy521_who_am_i(void);
-bool gy521_device_reset(void);
-bool gy521_sleep(bool device, bool temp); // Set sleep configuration
-bool gy521_stby(uint8_t stby);
-bool gy521_cycle_mode(gy521_cycle_t mode, uint8_t smplrt_wake);
-bool gy521_fsr(gy521_fsr_t fsr, gy521_afsr_t afsr);
-bool gy521_calibrate_gyro(uint8_t sample); // calibrate gyro offsets (sample=10)
-bool gy521_read_sensor(gy521_sensors_t sensors); // 0=all 1=accel 2=temp 3=gyro
-#if GY521_INT_PIN
-bool gy521_int_pin_cfg(uint8_t cfg);
-bool gy521_int_enable(uint8_t cfg);
-bool gy521_int_status(void);
-#endif
+void gy521_irq_handler(uint gpio, uint32_t events);
 
 // ========================
 // === Global Variables ===
@@ -59,12 +47,11 @@ static uint8_t g_gy521_cache[14] = {0}; // Temporary buffer for I2C reads
 static int g_gy521_ret_cache = 0; // Temporary buffer for return values
 
 #if GY521_INT_PIN
-volatile bool mpu_irq_flag = false;
-volatile uint32_t irq_event = 0;
+volatile bool g_mpu_irq_flag = false;
+
 void gy521_irq_handler(uint gpio, uint32_t events){
     if(gpio == GY521_INT_PIN){
-	irq_event = events;
-        mpu_irq_flag = true;
+        g_mpu_irq_flag = true;
     }
 }
 #endif
@@ -234,7 +221,7 @@ bool gy521_cycle_mode(gy521_cycle_t mode, uint8_t smplrt_wake){
 			g_gy521_cache[0] |= GY521_SLEEP; // Put device in sleep, accelerometer wakes up periodically
 
 			g_gy521_cache[1] &= ~GY521_LP_WAKE_40HZ; // Clear previous wake-up frequency bits
-			g_gy521_cache[1] |= smplrt_wake;  // Set new low-power wake-up frequency
+			//g_gy521_cache[1] |= smplrt_wake;  // Set new low-power wake-up frequency
 			g_gy521_cache[1] |= GY521_STBY_GYRO; // Keep gyro in standby during LP cycle
 		}
 	}else{
@@ -262,6 +249,20 @@ bool gy521_stby(uint8_t stby){
 	g_gy521_cache[0] |= stby;
 
 	if(!gy521_write_register((uint8_t[]){GY521_REG_PWR_MGMT_2, g_gy521_cache[0]}, 2, false)) return false;
+
+	return true;
+}
+
+// ==========================
+// === DLPF configuration ===
+// ==========================
+bool gy521_dlpf_cfg(gy521_dlpf_cfg_t cfg){
+	if(!gy521_read_register(GY521_REG_CONFIG, g_gy521_cache, 1, true)) return false;
+
+	g_gy521_cache[0] &= ~GY521_DLPF_CFG_3600HZ;
+	g_gy521_cache[0] |= cfg;
+
+	if(!gy521_write_register((uint8_t[]){GY521_REG_CONFIG, g_gy521_cache[0]}, 2, false)) return false;
 
 	return true;
 }
@@ -303,6 +304,9 @@ bool gy521_int_enable(uint8_t cfg){
 // === Read interrupt status ===
 // =============================
 bool gy521_int_status(void){
+	if(!g_mpu_irq_flag) return false;
+	else g_mpu_irq_flag = false;
+
 	if(!gy521_read_register(GY521_REG_INT_STATUS, g_gy521_cache, 1, false)) return false;
 
 	if((g_gy521_cache[0] & GY521_DATA_RDY_INT) ||

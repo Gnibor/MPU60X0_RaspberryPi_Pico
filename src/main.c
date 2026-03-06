@@ -67,6 +67,7 @@ int main(void){
 	if(gy521.fn.gyro_calibrate(10)) printf("GY-521 gyro is now calibrated.\n");
 	else printf("GY-521 gyro could not be calibrated.\n");
 
+	gy521_dlpf_cfg(GY521_DLPF_CFG_5HZ);
 
 	printf("how big is the struct: %dbytes\n", sizeof(gy521));
 
@@ -81,7 +82,7 @@ int main(void){
 		GY521_INT_RD_CLEAR     // Interrupt cleared by reading the fn.interrupt.status()
 	);*/
 
-	if(gy521.fn.cycle(GY521_CYCLE_LP, GY521_LP_WAKE_1_25HZ)) printf("Enable Cycle mode!!!\n");
+	if(gy521.fn.cycle(GY521_CYCLE_LP, 0)) printf("Enable Cycle mode!!!\n");
 	//else printf("Could not enable Cycle mode!!!\n");
 	sleep_ms(10);
 
