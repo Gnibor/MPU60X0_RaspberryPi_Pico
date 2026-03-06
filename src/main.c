@@ -38,7 +38,7 @@
 
 int main(void){
 	stdio_init_board();
-	mpu_s mpu = mpu_init(i2c1, MPU_I2C_ADDR_GND);
+	mpu_s mpu = mpu_init(i2c1, MPU_ADDR_GND);
 	mpu_use_struct(&mpu);
 
 	if(mpu_device_reset()) printf("__!Device resetted!__\n");
@@ -72,15 +72,15 @@ int main(void){
 
 	printf("how big is the struct: %dbytes\n", sizeof(mpu));
 
-	//if(!mpu.fn.stby(MPU60X0_STBY_YG)) printf("Could not set stand-by for YA!!!\n");
+	//if(!mpu_stby(MPU60X0_STBY_YG)) printf("Could not set stand-by for YA!!!\n");
 	//else printf("YA is now stand-by!\n");
 
 	// INT Pin configuration in the MPU60X0
 	/*mpu_int_pin_cfg(
-		MPU60X0_INT_LEVEL_LOW  | // 1 = Level, 0 = pulse
-		MPU60X0_INT_OPEN_DRAIN | // 1 = Push-Pull, 0 = Open-Drain
-		MPU60X0_LATCH_INT_EN   | // Latch Interrupt active
-		MPU60X0_INT_RD_CLEAR     // Interrupt cleared by reading the fn.interrupt.status()
+		MPU_INT_LEVEL_LOW  | // 1 = Level, 0 = pulse
+		MPU_INT_OPEN_DRAIN | // 1 = Push-Pull, 0 = Open-Drain
+		MPU_LATCH_INT_EN   | // Latch Interrupt active
+		MPU_INT_RD_CLEAR     // Interrupt cleared by reading the fn.interrupt.status()
 	);*/
 
 	if(mpu_cycle_mode(MPU_CYCLE_ON, MPU_SMPLRT_1KHZ)) printf("Enable Cycle mode!!!\n");

@@ -71,9 +71,9 @@
 #define MPU_INT_PULLUP 0
 #endif
 
-#define MPU_I2C_ADDR_GND 0x68 // Default I2C address for GY-521(MPU-6050) (AD0 pin -> Gnd)
-#define MPU_I2C_ADDR_VCC 0x69 // Default I2C address for GY-521(MPU-6050) (AD0 pin -> Vcc)
-
+#ifndef MPU_USE_CYCLE
+#define MPU_USE_CYCLE 1
+#endif
 
 /*
  * Identifiers for selecting specific sensor blocks
@@ -87,6 +87,7 @@ typedef enum{
 	MPU_SCALED = (1 << 3)
 } mpu_sensors_t;
 
+#if MPU_USE_CYCLE
 /*
  * Identifiers for selecting differrent function options
  * Used in mpu_dlpf_cfg()
@@ -96,7 +97,7 @@ typedef enum{
 	MPU_CYCLE_ON  = 1,
 	MPU_CYCLE_OFF = 0
 } mpu_cycle_t;
-
+#endif
 /*
  * Used in mpu_sleep()
  */
@@ -107,6 +108,13 @@ typedef enum{
 	MPU_SLEEP_TEMP_OFF	= (0 << 1),
 	MPU_SLEEP_ALL_OFF	= 0
 } mpu_sleep_t;
+
+typedef enum{
+	MPU_ADDR_GND = 0x68, // Default I2C address for MPU-60X0 (AD0 pin -> Gnd)
+	MPU_ADDR_VCC = 0x69  // Default I2C address for MPU-60X0 (AD0 pin -> Vcc)
+} mpu_addr_t;
+
+typedef uint8_t mpu_cache_t;
 
 // ========================
 // === Global Variables ===
@@ -150,9 +158,8 @@ typedef struct mpu_s{
 	// =====================
 	struct{
 		i2c_inst_t *i2c_port;
-		uint8_t addr; // Device Address
-		uint8_t *cache;
-		uint8_t clksel;
+		mpu_addr_t addr; // Device Address
+		mpu_cache_t *cache;
 		struct{ int32_t x, y, z; } gyro_offset, accel_offset;
 
 		struct{ float accel, gyro; } fsr_div;
@@ -167,7 +174,7 @@ typedef struct mpu_s{
  * Initializes the I²C connection and default configuration.
  * Returns a fully initialized mpu_s struct with function pointers and default values.
  */
-mpu_s mpu_init(i2c_inst_t *i2c_port, uint8_t addr);
+mpu_s mpu_init(i2c_inst_t *i2c_port, mpu_addr_t addr);
 bool mpu_use_struct(mpu_s *device);
 bool mpu_write_register(uint8_t *data, uint8_t how_many, bool block);
 bool mpu_read_register(uint8_t reg, uint8_t *out, uint8_t how_many, bool block);
@@ -175,15 +182,17 @@ bool mpu_dlpf_cfg(mpu_dlpf_cfg_t cfg);
 bool mpu_who_am_i(void);
 bool mpu_device_reset(void);
 bool mpu_sleep(mpu_sleep_t sleep); // Set sleep configuration
-bool mpu_stby(uint8_t stby);
-bool mpu_cycle_mode(mpu_cycle_t mode, uint8_t smplrt_wake);
+bool mpu_stby(mpu_stby_t stby);
 bool mpu_fsr(mpu_fsr_t fsr, mpu_afsr_t afsr);
 bool mpu_calibrate_gyro(uint8_t sample); // calibrate gyro offsets (sample=10)
 bool mpu_read_sensor(mpu_sensors_t sensors); // 0=all 1=accel 2=temp 3=gyro
+#if MPU_USE_CYCLE
+bool mpu_cycle_mode(mpu_cycle_t mode, uint8_t smplrt_wake);
+#endif
 #if MPU_INT_PIN
 void mpu_irq_handler(uint gpio, uint32_t events);
-bool mpu_int_pin_cfg(uint8_t cfg);
-bool mpu_int_enable(uint8_t cfg);
+bool mpu_int_pin_cfg(mpu_int_pin_cfg_t cfg);
+bool mpu_int_enable(mpu_int_enable_t type);
 bool mpu_int_status(void);
 #endif
 #endif
