@@ -1,4 +1,4 @@
-# MPU-60X0 Driver for RP Pico
+# MPU-60X0 Driver for Raspberry Pi Pico
 
 Lightweight C driver for the **MPU-60X0** 6-axis IMU designed for the **Raspberry Pi Pico**. Provides clean register-level implementation with automatic scaling and structured device API.
 
