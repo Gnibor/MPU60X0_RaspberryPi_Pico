@@ -38,7 +38,7 @@
 
 int main(void){
 	stdio_init_board();
-	mpu_s mpu = mpu_init(i2c1, MPU60X0_I2C_ADDR_GND);
+	mpu_s mpu = mpu_init(i2c1, MPU_I2C_ADDR_GND);
 	mpu_use_struct(&mpu);
 
 	if(mpu_device_reset()) printf("__!Device resetted!__\n");

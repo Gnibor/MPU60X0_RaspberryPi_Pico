@@ -46,12 +46,6 @@ static uint8_t g_mpu_cache[14] = {0}; // Temporary buffer for I2C reads
 static int g_mpu_ret_cache = 0; // Temporary buffer for return values
 
 #if MPU_INT_PIN
-volatile bool g_mpu_int_flag;
-void mpu_irq_handler(uint gpio, uint32_t events){
-    if(gpio == MPU_INT_PIN){
-        g_mpu_int_flag = true;
-    }
-}
 #endif
 
 // =========================
@@ -66,9 +60,9 @@ bool mpu_use_struct(mpu_s *device){
 	return true;
 }
 
-// ========================
+// ==========================
 // === Initialize MPU60X0 ===
-// ========================
+// ==========================
 mpu_s mpu_init(i2c_inst_t *i2c_port, uint8_t addr){
 	i2c_init(MPU_I2C_PORT, 400 * 1000); // 400 kHz I2C
 	gpio_set_function(MPU_SDA_PIN, GPIO_FUNC_I2C);
@@ -169,7 +163,7 @@ bool mpu_sleep(mpu_sleep_t sleep){
 }
 
 // ==================
-// === Cycle Mode ===	Low-Power Mode still work in progress
+// === Cycle Mode ===	!!!Still work in progress!!!
 // ==================
 /*
  * Set the MPU-6050 cycle mode.
@@ -252,57 +246,11 @@ bool mpu_dlpf_cfg(mpu60x0_dlpf_cfg_t cfg){
 	return true;
 }
 
-#if MPU_INT_PIN
-// ===================================
-// === Interrupt pin configuration ===
-// ===================================
-bool mpu_int_pin_cfg(uint8_t cfg){
-	if(!mpu_read_register(MPU60X0_REG_INT_PIN_CFG, g_mpu_cache, 1, true)) return false;
-
-	g_mpu_cache[0] &= ~MPU60X0_INT_PIN_CFG_ALL;
-	g_mpu_cache[0] |= cfg;
-
-	// Write back to registers
-	if(!mpu_write_register((uint8_t[]){MPU60X0_REG_INT_PIN_CFG, g_mpu_cache[0]}, 2, false)) return false;
-
-	return true;
-}
-
-// ============================
-// === Interrupt pin enable ===
-// ============================
-bool mpu_int_enable(uint8_t cfg){
-	if(!mpu_read_register(MPU60X0_REG_INT_ENABLE, g_mpu_cache, 1, true)) return false;
-
-	g_mpu_cache[0] &= ~MPU60X0_INT_PIN_CFG_ALL;
-	g_mpu_cache[0] |= cfg;
-
-	// Write back to registers
-	if(!mpu_write_register((uint8_t[]){MPU60X0_REG_INT_ENABLE, g_mpu_cache[0]}, 2, false)) return false;
-
-
-	return true;
-}
-
-// =============================
-// === Read interrupt status ===
-// =============================
-bool mpu_int_status(void){
-	if(!mpu_read_register(MPU60X0_REG_INT_STATUS, g_mpu_cache, 1, false)) return false;
-
-	if((g_mpu_cache[0] & MPU60X0_DATA_RDY_INT) ||
-	   (g_mpu_cache[0] & MPU60X0_I2C_MST_INT) ||
-	   (g_mpu_cache[0] & MPU60X0_FIFO_OFLOW_INT)) return true;
-	else return false;
-}
-#endif
-
 // ===================================
 // ===  Set Full-Scale Range (FSR) ===
 // === & Calculate Scaling Factors ===
 // ===================================
 bool mpu_fsr(mpu60x0_fsr_t fsr, mpu60x0_afsr_t afsr){
-	if(!g_mpu) return false;
 	// Read FSR Register
 	if(!mpu_read_register(MPU60X0_REG_GYRO_CONFIG, g_mpu_cache, 2, true)) return false;
 	
@@ -426,3 +374,56 @@ bool mpu_read_sensor(mpu_sensors_t sensors){
 
 	return true;
 }
+
+#if MPU_INT_PIN
+volatile bool g_mpu_int_flag;
+
+void mpu_irq_handler(uint gpio, uint32_t events){
+    if(gpio == MPU_INT_PIN){
+        g_mpu_int_flag = true;
+    }
+}
+
+// ===================================
+// === Interrupt pin configuration === !!!Still work in progress!!!
+// ===================================
+bool mpu_int_pin_cfg(uint8_t cfg){
+	if(!mpu_read_register(MPU60X0_REG_INT_PIN_CFG, g_mpu_cache, 1, true)) return false;
+
+	g_mpu_cache[0] &= ~MPU60X0_INT_PIN_CFG_ALL;
+	g_mpu_cache[0] |= cfg;
+
+	// Write back to registers
+	if(!mpu_write_register((uint8_t[]){MPU60X0_REG_INT_PIN_CFG, g_mpu_cache[0]}, 2, false)) return false;
+
+	return true;
+}
+
+// ============================
+// === Interrupt pin enable === !!!Still work in progress!!!
+// ============================
+bool mpu_int_enable(uint8_t cfg){
+	if(!mpu_read_register(MPU60X0_REG_INT_ENABLE, g_mpu_cache, 1, true)) return false;
+
+	g_mpu_cache[0] &= ~MPU60X0_INT_PIN_CFG_ALL;
+	g_mpu_cache[0] |= cfg;
+
+	// Write back to registers
+	if(!mpu_write_register((uint8_t[]){MPU60X0_REG_INT_ENABLE, g_mpu_cache[0]}, 2, false)) return false;
+
+
+	return true;
+}
+
+// =============================
+// === Read interrupt status === !!!Still work in progress!!!
+// =============================
+bool mpu_int_status(void){
+	if(!mpu_read_register(MPU60X0_REG_INT_STATUS, g_mpu_cache, 1, false)) return false;
+
+	if((g_mpu_cache[0] & MPU60X0_DATA_RDY_INT) ||
+	   (g_mpu_cache[0] & MPU60X0_I2C_MST_INT) ||
+	   (g_mpu_cache[0] & MPU60X0_FIFO_OFLOW_INT)) return true;
+	else return false;
+}
+#endif

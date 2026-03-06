@@ -113,34 +113,9 @@ typedef enum{
 // ========================
 extern volatile bool g_mpu_int_flag;
 
-// =======================
-// === Data Structures ===
-// =======================
-/*
- * Raw axis values directly from registers
- * Signed 16-bit values from sensor
- */
-typedef struct{
-	int16_t x,y,z;
-} mpu_axis_raw_t;
-
-/*
- * Scaled axis values
- * - Accel: g-force
- * - Gyro: degrees per second
- */
-typedef struct{
-	float x,y,z;
-} mpu_axis_scaled_t;
-
-/*
- * Axis offset as calculated from
- * the calibrate function
- */
-typedef struct{
-	int32_t x, y, z;
-} mpu_offset_t;
-
+// =====================
+// === Data Structur ===
+// =====================
 /*
  * Main device structure
  *
@@ -155,13 +130,13 @@ typedef struct mpu_s{
 	// =====================
 	struct{
 		struct{
-			mpu_axis_raw_t raw; // Raw accelerometer values
-			mpu_axis_scaled_t g; // Converted acceleration in G
+			struct{ int16_t x,y,z; } raw; // Raw accelerometer values
+			struct{ float x,y,z; } g; // Converted acceleration in G
 		} accel;
 
 		struct{
-			mpu_axis_raw_t raw; // Raw gyro values
-			mpu_axis_scaled_t dps; // Converted gyro in °/s
+			struct{ int16_t x,y,z; } raw; // Raw gyro values
+			struct{ float x,y,z; } dps; // Converted gyro in °/s
 		} gyro;
 
 		struct{
@@ -178,11 +153,9 @@ typedef struct mpu_s{
 		uint8_t addr; // Device Address
 		uint8_t *cache;
 		uint8_t clksel;
-		mpu_offset_t gyro_offset, accel_offset;
+		struct{ int32_t x, y, z; } gyro_offset, accel_offset;
 
-		struct{
-			float accel, gyro;
-		} fsr_div;
+		struct{ float accel, gyro; } fsr_div;
 	} conf;
 } mpu_s;
 
