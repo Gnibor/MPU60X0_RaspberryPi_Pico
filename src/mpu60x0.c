@@ -8,8 +8,8 @@
  * ================================================================
  *
  *  Description:
- *  Low-level driver implementation for the GY-521 module
- *  based on the MPU-6050 6-axis IMU sensor.
+ *  Low-level driver implementation for the
+ *  MPU-6050 6-axis IMU sensor.
  *
  *  This file implements:
  *  - I²C communication
