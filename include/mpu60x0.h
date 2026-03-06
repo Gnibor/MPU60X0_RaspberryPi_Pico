@@ -85,7 +85,7 @@ typedef enum{
 	MPU_GYRO = (1 << 2),
 	MPU_ALL = (MPU_ACCEL | MPU_TEMP | MPU_GYRO),
 	MPU_SCALED = (1 << 3)
-} mpu_sensors_t;
+} mpu_sensor_t;
 
 #if MPU_USE_CYCLE
 /*
@@ -185,7 +185,7 @@ bool mpu_sleep(mpu_sleep_t sleep); // Set sleep configuration
 bool mpu_stby(mpu_stby_t stby);
 bool mpu_fsr(mpu_fsr_t fsr, mpu_afsr_t afsr);
 bool mpu_calibrate_gyro(uint8_t sample); // calibrate gyro offsets (sample=10)
-bool mpu_read_sensor(mpu_sensors_t sensors); // 0=all 1=accel 2=temp 3=gyro
+bool mpu_read_sensor(mpu_sensor_t sensors); // 0=all 1=accel 2=temp 3=gyro
 #if MPU_USE_CYCLE
 bool mpu_cycle_mode(mpu_cycle_t mode, uint8_t smplrt_wake);
 #endif

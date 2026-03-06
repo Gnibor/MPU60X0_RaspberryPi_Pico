@@ -258,7 +258,7 @@ bool mpu_calibrate_gyro(uint8_t samples){
 // ===========================================
 // === Read Sensor Data + Optional Scaling ===
 // ===========================================
-bool mpu_read_sensor(mpu_sensors_t sensors){
+bool mpu_read_sensor(mpu_sensor_t sensors){
 	if(!g_mpu) return false;
 	// Read all sensors
 	uint8_t mask = (sensors & MPU_ALL);
