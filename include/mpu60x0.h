@@ -114,6 +114,17 @@ typedef enum{
 	MPU_ADDR_VCC = 0x69  // Default I2C address for MPU-60X0 (AD0 pin -> Vcc)
 } mpu_addr_t;
 
+typedef enum{
+	MPU_RESET_ALL = (1 << 0),
+	MPU_RESET_TEMP = (1 << 1),
+	MPU_RESET_ACCEL = (1 << 2),
+	MPU_RESET_GYRO = (1 << 3),
+	MPU_RESET_SIG_COND = (1 << 4),
+	MPU_RESET_I2C_MST = (1 << 5),
+	MPU_RESET_FIFO = (1 << 6),
+	MPU_RESET_DEVICE = (1 << 7)
+} mpu_reset_t;
+
 typedef uint8_t mpu_cache_t;
 
 // ========================
@@ -160,7 +171,7 @@ typedef struct mpu_s{
 		i2c_inst_t *i2c_port;
 		mpu_addr_t addr; // Device Address
 		mpu_cache_t *cache;
-		struct{ int32_t x, y, z; } gyro_offset, accel_offset;
+		struct{ int32_t x, y, z; } gyro_offset;
 
 		struct{ float accel, gyro; } fsr_div;
 	} conf;
@@ -178,21 +189,21 @@ mpu_s mpu_init(i2c_inst_t *i2c_port, mpu_addr_t addr);
 bool mpu_use_struct(mpu_s *device);
 bool mpu_write_register(uint8_t *data, uint8_t how_many, bool block);
 bool mpu_read_register(uint8_t reg, uint8_t *out, uint8_t how_many, bool block);
-bool mpu_dlpf_cfg(mpu_dlpf_cfg_t cfg);
 bool mpu_who_am_i(void);
 bool mpu_device_reset(void);
+bool mpu_reset(mpu_reset_t reset);
 bool mpu_sleep(mpu_sleep_t sleep); // Set sleep configuration
 bool mpu_stby(mpu_stby_t stby);
+bool mpu_clk_sel(mpu_clk_sel_t clksel);
+bool mpu_dlpf_cfg(mpu_dlpf_cfg_t cfg);
 bool mpu_fsr(mpu_fsr_t fsr, mpu_afsr_t afsr);
 bool mpu_calibrate_gyro(uint8_t sample); // calibrate gyro offsets (sample=10)
 bool mpu_read_sensor(mpu_sensor_t sensors); // 0=all 1=accel 2=temp 3=gyro
-#if MPU_USE_CYCLE
-bool mpu_cycle_mode(mpu_cycle_t mode, uint8_t smplrt_wake);
-#endif
+bool mpu_cycle_mode(mpu_cycle_t mode, mpu_lp_wake_t wake_up_rate);
 #if MPU_INT_PIN
 void mpu_irq_handler(uint gpio, uint32_t events);
 bool mpu_int_pin_cfg(mpu_int_pin_cfg_t cfg);
 bool mpu_int_enable(mpu_int_enable_t type);
 bool mpu_int_status(void);
 #endif
-#endif
+#endif // MPU60X0_H

@@ -146,6 +146,41 @@ bool mpu_device_reset(void){
 	return true;
 }
 
+bool mpu_reset(mpu_reset_t reset){
+	if(!mpu_read_register(MPU_REG_SIGNAL_PATH_RESET, g_mpu->conf.cache, 3, true)) return false;
+
+	if(reset & MPU_RESET_TEMP) g_mpu->conf.cache[0] |= MPU_TEMP_RESET;
+	if(reset & MPU_RESET_ACCEL) g_mpu->conf.cache[0] |= MPU_ACCEL_RESET;
+	if(reset & MPU_RESET_GYRO) g_mpu->conf.cache[0] |= MPU_GYRO_RESET;
+
+	if(reset & MPU_RESET_SIG_COND) g_mpu->conf.cache[1] |= MPU_SIG_COND_RESET;
+	if(reset & MPU_RESET_I2C_MST) g_mpu->conf.cache[1] |= MPU_I2C_MST_RESET;
+	if(reset & MPU_RESET_FIFO) g_mpu->conf.cache[1] |= MPU_FIFO_RESET;
+
+	if(reset & MPU_RESET_DEVICE) g_mpu->conf.cache[2] |= MPU_DEVICE_RESET;
+
+	if(reset & MPU_RESET_ALL){
+		g_mpu->conf.cache[2] |= MPU_DEVICE_RESET;
+		if(!mpu_write_register((uint8_t[]){MPU_REG_PWR_MGMT_1, g_mpu->conf.cache[2]}, 2, true)) return false;
+		sleep_ms(150);
+		g_mpu->conf.cache[0] |= (MPU_TEMP_RESET | MPU_ACCEL_RESET | MPU_GYRO_RESET);
+		if(!mpu_write_register((uint8_t[]){MPU_REG_SIGNAL_PATH_RESET, g_mpu->conf.cache[0]}, 2, true)) return false;
+		sleep_ms(200);
+		g_mpu->conf.cache[1] |= (MPU_SIG_COND_RESET | MPU_I2C_MST_RESET | MPU_FIFO_RESET);
+		if(!mpu_write_register((uint8_t[]){MPU_REG_USER_CTRL, g_mpu->conf.cache[1]}, 2, false)) return false;
+		sleep_ms(200);
+	}else{
+		g_mpu->conf.cache[3] = g_mpu->conf.cache[2];
+		g_mpu->conf.cache[2] = g_mpu->conf.cache[1];
+		g_mpu->conf.cache[1] = g_mpu->conf.cache[0];
+		g_mpu->conf.cache[0] = MPU_REG_SIGNAL_PATH_RESET;
+		if(!mpu_write_register(g_mpu->conf.cache, 4, false)) return false;
+		sleep_ms(100);
+	}
+
+	return true;
+}
+
 // ==================
 // === Sleep Mode ===
 // ==================
@@ -181,6 +216,17 @@ bool mpu_stby(mpu_stby_t stby){
 	return true;
 }
 
+bool mpu_clk_sel(mpu_clk_sel_t clksel){
+	if(!mpu_read_register(MPU_REG_PWR_MGMT_1, g_mpu->conf.cache, 1, true)) return false;
+
+	g_mpu->conf.cache[0] &= ~MPU_CLK_STOP;
+	g_mpu->conf.cache[0] |= clksel;
+
+	if(!mpu_write_register((uint8_t[]){MPU_REG_PWR_MGMT_1, g_mpu->conf.cache[0]}, 2, false)) return false;
+
+	return true;
+}
+
 // ==========================
 // === DLPF configuration ===
 // ==========================
@@ -191,6 +237,71 @@ bool mpu_dlpf_cfg(mpu_dlpf_cfg_t cfg){
 	g_mpu->conf.cache[0] |= cfg;
 
 	if(!mpu_write_register((uint8_t[]){MPU_REG_CONFIG, g_mpu->conf.cache[0]}, 2, false)) return false;
+
+	return true;
+}
+
+// =======================
+// === Set Sample Rate ===
+// =======================
+bool mpu_smplrt_div(mpu_smplrt_div_t smplrt_div){
+	if(!g_mpu) return false;
+
+	g_mpu->conf.cache[0] = MPU_REG_SMPLRT_DIV;
+	g_mpu->conf.cache[1] = smplrt_div;
+
+	if(!mpu_write_register(g_mpu->conf.cache, 2, false)) return false;
+
+	return true;
+}
+
+// ==================
+// === Cycle Mode ===
+// ==================
+/*
+ * Set the MPU-6050 cycle mode.
+ *
+ * Parameters:
+ *  - mode:         Select normal cycle mode, low-power cycle mode, or disable cycle.
+ *  - smplrt_wake:  Determines the wake-up frequency.
+ *                  * For low-power cycle mode, use the predefined mpu_lp_wake_t enum
+ *                    for common frequencies (e.g., 1.25Hz, 5Hz, 10Hz, 20Hz, 40Hz).
+ *                  * For normal cycle mode use mpu_splrt_div_t enum or use custom rates, any value 0-255 is valid.
+ *                    The effective sample rate will be calculated as:
+ *                      SampleRate = GyroOutputRate / (1 + smplrt_wake)
+ *                    where GyroOutputRate = 8kHz or 1kHz depending on the FCHOICE settings.
+ *
+ * Notes:
+ *  - In low-power mode, all gyroscope axes are automatically put into standby.
+ *  - The function updates both PWR_MGMT_1 and PWR_MGMT_2 registers in a single I2C transaction.
+ *  - This allows flexible wake frequencies while preserving efficient register writes.
+ */
+bool mpu_cycle_mode(mpu_cycle_t mode, mpu_lp_wake_t wake_up_rate){
+	// Read current power management registers (PWR_MGMT_1 and PWR_MGMT_2)
+	if(!mpu_read_register(MPU_REG_PWR_MGMT_1, g_mpu->conf.cache, 2, true)) return false;
+
+	// Enable or disable cycle mode
+	if(mode == MPU_CYCLE_ON || mode == MPU_CYCLE_LP){
+		g_mpu->conf.cache[0] |= MPU_CYCLE; // Activate CYCLE (set to 1)
+		g_mpu->conf.cache[0] &= ~MPU_SLEEP; // Deactivate SLEEP (set to 0)
+
+		g_mpu->conf.cache[1] &= ~MPU_LP_WAKE_40HZ; // Clear previous wake-up frequency bits
+		g_mpu->conf.cache[1] |= wake_up_rate; // Set new wake-up frequency
+		if(mode == MPU_CYCLE_LP){
+			g_mpu->conf.cache[0] |= MPU_TEMP_DIS; // Deactivate Temperature sensor (set to 1)
+
+			g_mpu->conf.cache[1] |= MPU_STBY_GYRO; // Keep gyro in standby during LP cycle
+		}
+	}else{
+		g_mpu->conf.cache[0] &= ~MPU_CYCLE;  // Clear CYCLE bit
+		g_mpu->conf.cache[1] &= ~MPU_LP_WAKE_40HZ; // Clear LP wake frequency bits
+		g_mpu->conf.cache[1] &= ~MPU_STBY_GYRO; // Reactivate gyro if it was in standby
+	}
+
+	// Write back updated registers
+	if(!mpu_write_register((uint8_t[]){MPU_REG_PWR_MGMT_1, g_mpu->conf.cache[0], g_mpu->conf.cache[1]}, 3, false)) return false;
+
+	sleep_ms(10); // Activation pause
 
 	return true;
 }
@@ -309,9 +420,9 @@ bool mpu_read_sensor(mpu_sensor_t sensors){
 	if(sensors & MPU_SCALED){
 		// Raw -> G for accelerometer
 		if(mask & MPU_ACCEL){
-			g_mpu->v.accel.g.x = (g_mpu->v.accel.raw.x - g_mpu->conf.accel_offset.x) / g_mpu->conf.fsr_div.accel;
-			g_mpu->v.accel.g.y = (g_mpu->v.accel.raw.y - g_mpu->conf.accel_offset.y) / g_mpu->conf.fsr_div.accel;
-			g_mpu->v.accel.g.z = (g_mpu->v.accel.raw.z - g_mpu->conf.accel_offset.z) / g_mpu->conf.fsr_div.accel;
+			g_mpu->v.accel.g.x = g_mpu->v.accel.raw.x / g_mpu->conf.fsr_div.accel;
+			g_mpu->v.accel.g.y = g_mpu->v.accel.raw.y / g_mpu->conf.fsr_div.accel;
+			g_mpu->v.accel.g.z = g_mpu->v.accel.raw.z / g_mpu->conf.fsr_div.accel;
 		}
 		// Raw -> °C
 		if(mask & MPU_TEMP)
@@ -326,64 +437,6 @@ bool mpu_read_sensor(mpu_sensor_t sensors){
 
 	return true;
 }
-
-#if MPU_USE_CYCLE
-// ==================
-// === Cycle Mode ===	!!!Still work in progress!!!
-// ==================
-/*
- * Set the MPU-6050 cycle mode.
- *
- * Parameters:
- *  - mode:         Select normal cycle mode, low-power cycle mode, or disable cycle.
- *  - smplrt_wake:  Determines the wake-up frequency or the sample-rate divider.
- *                  * For low-power cycle mode, use the predefined mpu_lp_wake_t enum
- *                    for common frequencies (e.g., 1.25Hz, 5Hz, 10Hz, 20Hz, 40Hz).
- *                  * For normal cycle mode use mpu_splrt_div_t enum or use custom rates, any value 0-255 is valid.
- *                    The effective sample rate will be calculated as:
- *                      SampleRate = GyroOutputRate / (1 + smplrt_wake)
- *                    where GyroOutputRate = 8kHz or 1kHz depending on the FCHOICE settings.
- *
- * Notes:
- *  - In low-power mode, all gyroscope axes are automatically put into standby.
- *  - The function updates both PWR_MGMT_1 and PWR_MGMT_2 registers in a single I2C transaction.
- *  - This allows flexible wake frequencies while preserving efficient register writes.
- */
-bool mpu_cycle_mode(mpu_cycle_t mode, uint8_t smplrt_wake){
-	// Read current power management registers (PWR_MGMT_1 and PWR_MGMT_2)
-	if(!mpu_read_register(MPU_REG_PWR_MGMT_1, g_mpu->conf.cache, 2, true)) return false;
-
-	// Enable or disable cycle mode
-	if(mode == MPU_CYCLE_ON || mode == MPU_CYCLE_LP){
-		g_mpu->conf.cache[0] |= MPU_CYCLE;
-
-		// Standard cycle mode: set sample rate divider
-		if(mode != MPU_CYCLE_LP){
-			// smplrt_wake = divider for wake-up frequency: freq = 1 kHz / (divider + 1)
-			if(!mpu_write_register((uint8_t[]){MPU_REG_SMPLRT_DIV, smplrt_wake}, 2, true)) return false;
-		// Low-power cycle mode
-		}else if(mode == MPU_CYCLE_LP){
-			g_mpu->conf.cache[0] |= MPU_SLEEP; // Put device in sleep, accelerometer wakes up periodically
-
-			g_mpu->conf.cache[1] &= ~MPU_LP_WAKE_40HZ; // Clear previous wake-up frequency bits
-			//g_mpu->conf.cache[1] |= smplrt_wake;  // Set new low-power wake-up frequency
-			g_mpu->conf.cache[1] |= MPU_STBY_GYRO; // Keep gyro in standby during LP cycle
-		}
-	}else{
-		g_mpu->conf.cache[0] &= ~MPU_CYCLE;  // Clear CYCLE bit
-		g_mpu->conf.cache[0] &= ~MPU_SLEEP;
-		g_mpu->conf.cache[1] &= ~MPU_LP_WAKE_40HZ; // Clear LP wake frequency bits
-		g_mpu->conf.cache[1] &= ~MPU_STBY_GYRO; // Reactivate gyro if it was in standby
-	}
-
-	// Write back updated registers
-	if(!mpu_write_register((uint8_t[]){MPU_REG_PWR_MGMT_1, g_mpu->conf.cache[0], g_mpu->conf.cache[1]}, 3, false)) return false;
-
-	sleep_ms(10); // Activation pause
-
-	return true;
-}
-#endif
 
 #if MPU_INT_PIN
 volatile bool g_mpu_int_flag;

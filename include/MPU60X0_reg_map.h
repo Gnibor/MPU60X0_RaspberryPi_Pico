@@ -61,7 +61,9 @@
 typedef enum {
 	MPU_SMPLRT_8KHZ =		(0 << 0),
 	MPU_SMPLRT_1KHZ =		(0x7 << 0),
-	MPU_SMPLRT_200HZ =		(0x27 << 0)   // 39 decimal = 0x27
+	MPU_SMPLRT_500HZ =		(0xE << 0),
+	MPU_SMPLRT_200HZ =		(0x27 << 0),   // 39 decimal = 0x27
+	MPU_SMPLRT_100HZ =		(0x5C << 0)
 } mpu_smplrt_div_t;
 
 #define MPU_REG_CONFIG			0x1A

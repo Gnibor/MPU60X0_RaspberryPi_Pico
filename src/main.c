@@ -41,6 +41,8 @@ int main(void){
 	mpu_s mpu = mpu_init(i2c1, MPU_ADDR_GND);
 	mpu_use_struct(&mpu);
 
+	//mpu_reset(MPU_RESET_SIG_COND);
+
 	if(mpu_device_reset()) printf("__!Device resetted!__\n");
 	sleep_ms(50);
 	int retries = 3;
@@ -56,19 +58,17 @@ int main(void){
 	if(!connected) printf("GY-521 not found!\n");
 	else printf("GY-521 ready!\n");
 
-	if(!mpu_sleep(MPU_SLEEP_ALL_OFF)) printf("sleep did not get deactivated!!!\n");
-	else printf("sleep is deactivated!\n");
-	sleep_ms(10);
+	//if(mpu_clk_sel(MPU_CLK_XGYRO)) printf("CLK_SEL is set to the internal 8Mhz clock!!!\n");
 
-	if(!mpu_fsr(MPU_FSR_500DPS, MPU_AFSR_2G)) printf("Could not set the SFR/AFSR\n");
-	else printf("FSR=2000dps, AFSR=8g\n");
+	if(mpu_sleep(MPU_SLEEP_ALL_OFF)) printf("sleep is deactivated!\n");
+
+	if(mpu_fsr(MPU_FSR_2000DPS, MPU_AFSR_16G)) printf("FSR=2000dps, AFSR=8g\n");
 
 	printf("Try to calibrate GY-521\n");
 	sleep_ms(2000);
 	if(mpu_calibrate_gyro(10)) printf("GY-521 gyro is now calibrated.\n");
-	else printf("GY-521 gyro could not be calibrated.\n");
 
-	mpu_dlpf_cfg(MPU_DLPF_CFG_260HZ);
+	mpu_dlpf_cfg(MPU_DLPF_CFG_184HZ);
 
 	printf("how big is the struct: %dbytes\n", sizeof(mpu));
 
@@ -83,23 +83,23 @@ int main(void){
 		MPU_INT_RD_CLEAR     // Interrupt cleared by reading the fn.interrupt.status()
 	);*/
 
-	if(mpu_cycle_mode(MPU_CYCLE_ON, MPU_SMPLRT_1KHZ)) printf("Enable Cycle mode!!!\n");
-	else printf("Could not enable Cycle mode!!!\n");
+	if(mpu_cycle_mode(MPU_CYCLE_OFF, MPU_LP_WAKE_5HZ)) printf("Enable Cycle mode!!!\n");
 	sleep_ms(10);
 
+	//if(mpu_sleep(MPU_SLEEP_ALL_OFF)) printf("sleep is deactivated!\n");
 	// Data ready interrupt activate
 	//mpu_int_enable(MPU_DATA_RDY_EN);
 	//gpio_set_irq_enabled_with_callback(MPU_INT_PIN, GPIO_IRQ_EDGE_RISE, true, &mpu_irq_handler);
 
 	while(1){
 		//if(g_mpu_int_flag) printf("Hello from the Interrupt Flag!!!!!!!!!!!!!!!!\n");
-		if(mpu_int_status()){
+		//if(mpu_int_status()){
 			if(mpu_read_sensor(MPU_ALL | MPU_SCALED))
 				printf("G=X:%6.3f Y:%6.3f Z:%6.3f | °C=%6.2f | °/s=X:%9.3f Y:%9.3f Z:%9.3f\n", 
 					mpu.v.accel.g.x, mpu.v.accel.g.y, mpu.v.accel.g.z, 
 					mpu.v.temp.celsius, 
 					mpu.v.gyro.dps.x, mpu.v.gyro.dps.y, mpu.v.gyro.dps.z);
-		}
-		sleep_ms(20);
+		//}
+		sleep_ms(250);
 	}
 }

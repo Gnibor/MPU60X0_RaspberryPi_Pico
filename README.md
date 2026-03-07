@@ -1,4 +1,4 @@
-# MPU-60X0 Driver for Raspberry Pi Pico
+# MPU-6000/MPU-6050 Driver for Raspberry Pi Pico
 
 Lightweight C driver for the **MPU-60X0** 6-axis IMU designed for the **Raspberry Pi Pico**. Provides clean register-level implementation with automatic scaling and structured device API.
 
@@ -39,7 +39,7 @@ Dependencies: pico/stdlib, hardware/i2c, string
 - Standby control per axis
 - Sleep mode all or temperatur
 - Gyroscope zero-offset calibration  
-- Raw + scaled sensor output: Acceleration in **g**, Angular velocity in **°/s**, Temperature in **°C**  
+- Raw + scaled sensor output: Acceleration in ***g***, Angular velocity in ***°/s***, Temperature in ***°C***  
 - No dynamic memory allocation  
 - Fully configurable via macros  
 
@@ -74,7 +74,7 @@ Dependencies: pico/stdlib, hardware/i2c, string
 - Continuous buffered sampling mode  
 
 ### Complete Register Coverage
-- Structured access to all MPU-6050 registers  
+- Structured access to all MPU-6000/MPU-6050 registers  
 - Optional register debug dump function  
 
 ---
@@ -159,7 +159,8 @@ And set 'device' as active.
 | `bool mpu_fsr(mpu_fsr_s, mpu_afsr_s)` | Sets full-scale range and updates scaling divider |
 | `bool mpu_stby(mpu_stby_t)` | Enables/disables standby per axis, sensor or all |
 | `bool mpu_read_sensor(mpu_sensor_s)` | Reads sensor data (raw or scaled) |
-| `bool mpu_calibrate_gyro(samples)` | Computes `samples` *(5-20)* time to calculate gyro zero-offset |
+| `bool mpu_calibrate_gyro(samples)` | Computes `samples` **(5-20)** time to calculate gyro zero-offset |
+| `bool mpu_cycle_mode(mpu_cycle_t, smplrt_wake)` | Activate/deactivate **cycle** or **cycle low power** mode and set the mpu_smplrt_t |
 
 #### Interrupt Functions (Experimental)
 
