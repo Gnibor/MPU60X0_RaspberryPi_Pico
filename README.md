@@ -94,7 +94,7 @@ Hardware config can be adjusted in `mpu60x0.h` or in `main.c` before `#include "
 #define MPU_SCL_PIN 7
 #define MPU_USE_PULLUP 0
 #define MPU_INT_PIN 26
-ädefine MPU_INT_PULLUP 0
+#define MPU_INT_PULLUP 0
 #include "mpu60x0.h"
 ```
 
