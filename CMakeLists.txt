@@ -5,7 +5,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # Pico SDK importieren (Pfad muss passen!)
 include(pico_sdk_import.cmake)
 
-project(gy521_rp2040 C CXX ASM)
+project(MPU60X0_RaspberryPi_Pico C CXX ASM)
 
 # SDK initialisieren
 pico_sdk_init()
