@@ -26,11 +26,7 @@
  *
  * ================================================================
  */
-#include "pico/stdlib.h"
-#include <hardware/gpio.h>
-#include <stdbool.h>
 #include <stdio.h>
-#include <sys/types.h>
 
 #include "default.h"
 #include "mpu60x0.h"

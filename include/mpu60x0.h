@@ -40,7 +40,6 @@
 #ifndef MPU60X0_H
 #define MPU60X0_H
 
-#include "pico/stdlib.h"
 #include "hardware/i2c.h"
 #include "MPU60X0_reg_map.h"
 
@@ -71,10 +70,6 @@
 #define MPU_INT_PULLUP 0
 #endif
 
-#ifndef MPU_USE_CYCLE
-#define MPU_USE_CYCLE 1
-#endif
-
 /*
  * Identifiers for selecting specific sensor blocks
  * Used in mpu_read()
@@ -87,17 +82,17 @@ typedef enum{
 	MPU_SCALED = (1 << 3)
 } mpu_sensor_t;
 
-#if MPU_USE_CYCLE
 /*
  * Identifiers for selecting differrent function options
  * Used in mpu_dlpf_cfg()
  */
+
 typedef enum{
 	MPU_CYCLE_LP  = 2,
 	MPU_CYCLE_ON  = 1,
 	MPU_CYCLE_OFF = 0
 } mpu_cycle_t;
-#endif
+
 /*
  * Used in mpu_sleep()
  */
@@ -193,6 +188,7 @@ bool mpu_reset(mpu_reset_t reset);
 bool mpu_sleep(mpu_sleep_t sleep); // Set sleep configuration
 bool mpu_stby(mpu_stby_t stby);
 bool mpu_clk_sel(mpu_clk_sel_t clksel);
+bool mpu_smplrt_div(mpu_smplrt_div_t smplrt_div);
 bool mpu_dlpf_cfg(mpu_dlpf_cfg_t cfg);
 bool mpu_fsr(mpu_fsr_t fsr, mpu_afsr_t afsr);
 bool mpu_calibrate_gyro(uint8_t sample); // calibrate gyro offsets (sample=10)

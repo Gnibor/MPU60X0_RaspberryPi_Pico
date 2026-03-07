@@ -27,10 +27,11 @@
  *
  * ================================================================
  */
-#include "MPU60X0_reg_map.h"
 #include "hardware/i2c.h"
+#include "hardware/gpio.h"
 #include <string.h>
 #include "mpu60x0.h"
+#include "MPU60X0_reg_map.h"
 
 // ===========================
 // === Function prototypes ===
@@ -42,18 +43,6 @@
 static mpu_cache_t g_mpu_cache[14] = {0};
 static mpu_s *g_mpu = NULL; // Global pointer to the aktiv MPU-Device
 static int g_mpu_ret_cache = 0; // Temporary buffer for return values
-
-// =========================
-// === Set device to use ===
-// =========================
-// to set device as used device for fn.*
-bool mpu_use_struct(mpu_s *device){
-	if (device == NULL) return false; // Check if device is set
-
-	g_mpu = device;
-
-	return true;
-}
 
 // ==========================
 // === Initialize MPU ===
@@ -88,6 +77,18 @@ mpu_s mpu_init(i2c_inst_t *i2c_port, mpu_addr_t addr){
 	mpu.conf.fsr_div.gyro = 131.0f;
 
 	return mpu;
+}
+
+// =========================
+// === Set device to use ===
+// =========================
+// to set device as used device for the functions who need the struct
+bool mpu_use_struct(mpu_s *device){
+	if (device == NULL) return false; // Check if device is set
+
+	g_mpu = device;
+
+	return true;
 }
 
 // ==========================
