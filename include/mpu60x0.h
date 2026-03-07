@@ -170,7 +170,6 @@ typedef struct mpu_s{
 	struct{
 		i2c_inst_t *i2c_port;
 		mpu_addr_t addr; // Device Address
-		mpu_cache_t *cache;
 		struct{ int32_t x, y, z; } gyro_offset;
 
 		struct{ float accel, gyro; } fsr_div;
@@ -190,7 +189,6 @@ bool mpu_use_struct(mpu_s *device);
 bool mpu_write_register(uint8_t *data, uint8_t how_many, bool block);
 bool mpu_read_register(uint8_t reg, uint8_t *out, uint8_t how_many, bool block);
 bool mpu_who_am_i(void);
-bool mpu_device_reset(void);
 bool mpu_reset(mpu_reset_t reset);
 bool mpu_sleep(mpu_sleep_t sleep); // Set sleep configuration
 bool mpu_stby(mpu_stby_t stby);
