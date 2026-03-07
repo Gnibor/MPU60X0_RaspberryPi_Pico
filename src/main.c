@@ -27,6 +27,7 @@
  * ================================================================
  */
 #include <stdio.h>
+#include "hardware/gpio.h"
 
 #include "default.h"
 #include "mpu60x0.h"
@@ -34,7 +35,7 @@
 
 int main(void){
 	stdio_init_board();
-	mpu_s mpu = mpu_init(i2c1, MPU_ADDR_GND);
+	mpu_s mpu = mpu_init(MPU_I2C_PORT, MPU_ADDR_AD0_GND);
 	mpu_use_struct(&mpu);
 
 	//mpu_reset(MPU_RESET_SIG_COND);
@@ -72,23 +73,23 @@ int main(void){
 	//else printf("YA is now stand-by!\n");
 
 	// INT Pin configuration in the MPU60X0
-	/*mpu_int_pin_cfg(
+	mpu_int_pin_cfg(
 		MPU_INT_LEVEL_LOW  | // 1 = Level, 0 = pulse
 		MPU_INT_OPEN_DRAIN | // 1 = Push-Pull, 0 = Open-Drain
 		MPU_LATCH_INT_EN   | // Latch Interrupt active
 		MPU_INT_RD_CLEAR     // Interrupt cleared by reading the fn.interrupt.status()
-	);*/
+	);
 
 	if(mpu_cycle_mode(MPU_CYCLE_OFF, MPU_LP_WAKE_5HZ)) printf("Enable Cycle mode!!!\n");
 	sleep_ms(10);
 
 	//if(mpu_sleep(MPU_SLEEP_ALL_OFF)) printf("sleep is deactivated!\n");
 	// Data ready interrupt activate
-	//mpu_int_enable(MPU_DATA_RDY_EN);
-	//gpio_set_irq_enabled_with_callback(MPU_INT_PIN, GPIO_IRQ_EDGE_RISE, true, &mpu_irq_handler);
+	mpu_int_enable(MPU_DATA_RDY_EN);
+	gpio_set_irq_enabled_with_callback(MPU_INT_PIN, GPIO_IRQ_EDGE_RISE, true, &mpu_irq_handler);
 
 	while(1){
-		//if(g_mpu_int_flag) printf("Hello from the Interrupt Flag!!!!!!!!!!!!!!!!\n");
+		if(g_mpu_int_flag) printf("Hello from the Interrupt Flag!!!!!!!!!!!!!!!!\n");
 		//if(mpu_int_status()){
 			if(mpu_read_sensor(MPU_ALL | MPU_SCALED))
 				printf("G=X:%6.3f Y:%6.3f Z:%6.3f | °C=%6.2f | °/s=X:%9.3f Y:%9.3f Z:%9.3f\n", 

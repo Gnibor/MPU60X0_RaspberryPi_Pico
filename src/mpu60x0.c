@@ -70,7 +70,7 @@ mpu_s mpu_init(i2c_inst_t *i2c_port, mpu_addr_t addr){
 	if(!i2c_port) mpu.conf.i2c_port = i2c1;
 	else mpu.conf.i2c_port = i2c_port;
 
-	if(!addr) mpu.conf.addr = MPU_ADDR_GND;
+	if(!addr) mpu.conf.addr = MPU_ADDR_AD0_GND;
 	else mpu.conf.addr = addr;
 
 	mpu.conf.fsr_div.accel = 16384.0f;

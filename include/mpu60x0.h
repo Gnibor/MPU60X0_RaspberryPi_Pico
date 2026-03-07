@@ -59,7 +59,7 @@
 #endif
 
 #ifndef MPU_USE_PULLUP
-#define MPU_USE_PULLUP 1 // 1 = enable internal pull-up, 0 = disabled
+#define MPU_USE_PULLUP 0 // 1 = enable internal pull-up, 0 = disabled
 #endif
 
 #ifndef MPU_INT_PIN
@@ -67,7 +67,7 @@
 #endif
 
 #ifndef MPU_INT_PULLUP
-#define MPU_INT_PULLUP 0
+#define MPU_INT_PULLUP 0 // 1 = enable internal pull-up, 0 = disabled
 #endif
 
 /*
@@ -101,12 +101,12 @@ typedef enum{
 	MPU_SLEEP_DEVICE_OFF	= (0 << 0),
 	MPU_SLEEP_TEMP_ON	= (1 << 1),
 	MPU_SLEEP_TEMP_OFF	= (0 << 1),
-	MPU_SLEEP_ALL_OFF	= 0
+	MPU_SLEEP_ALL_OFF	=  0
 } mpu_sleep_t;
 
 typedef enum{
-	MPU_ADDR_GND = 0x68, // Default I2C address for MPU-60X0 (AD0 pin -> Gnd)
-	MPU_ADDR_VCC = 0x69  // Default I2C address for MPU-60X0 (AD0 pin -> Vcc)
+	MPU_ADDR_AD0_GND = 0x68, // Default I2C address for MPU-60X0 (AD0 pin -> Gnd)
+	MPU_ADDR_AD0_VCC = 0x69  // Default I2C address for MPU-60X0 (AD0 pin -> Vcc)
 } mpu_addr_t;
 
 typedef enum{

@@ -20,7 +20,7 @@ This is my first project in almost a decade. My focus is on:
 - Raspberry Pi Pico toolchain  
 - CMake-based build environment  
 
-Dependencies: pico/stdlib, hardware/i2c, string  
+Dependencies: **hardware/i2c**, **hardware/gpio**, **string** and for the example **stdio**  
 
 ---
 
@@ -34,10 +34,12 @@ Dependencies: pico/stdlib, hardware/i2c, string
 - WHO_AM_I device verification  
 - Device reset and wake-up  
 - Clock source selection  
+- Sample rate divider selection  
 - DLPF Configuration  
 - Accelerometer & Gyroscope Full-Scale-Range configuration  
-- Standby control per axis
-- Sleep mode all or temperatur
+- Standby control per axis  
+- Sleep mode all or temperatur  
+- Full Cycle mode configuration with Low Power  
 - Gyroscope zero-offset calibration  
 - Raw + scaled sensor output: Acceleration in ***g***, Angular velocity in ***°/s***, Temperature in ***°C***  
 - No dynamic memory allocation  
@@ -46,10 +48,6 @@ Dependencies: pico/stdlib, hardware/i2c, string
 ---
 
 ## Experimental
-
-### Extended Power Management
-- Cycle mode support  
-- Low-power wake control  
 
 ### Interrupt Configuration & Handling
 - INT_ENABLE register configuration  
@@ -95,6 +93,8 @@ Hardware config can be adjusted in `mpu60x0.h` or in `main.c` before `#include "
 #define MPU_SDA_PIN 6
 #define MPU_SCL_PIN 7
 #define MPU_USE_PULLUP 0
+#define MPU_INT_PIN 26
+ädefine MPU_INT_PULLUP 0
 #include "mpu60x0.h"
 ```
 
@@ -106,25 +106,25 @@ Hardware config can be adjusted in `mpu60x0.h` or in `main.c` before `#include "
 int main(void)
 {
     stdio_usb_init();
-    while (!stdio_usb_connected()) sleep_ms(100);
+    while(!stdio_usb_connected()) sleep_ms(100);
 
-    mpu_s imu = mpu_init(MPU_I2C_PORT, MPU_I2C_ADDR_GND);
+    mpu_s imu = mpu_init(MPU_I2C_PORT, MPU_ADDR_AD0_GND);
     mpu_use_struct(&imu);
 
-    if (!mpu_who_am_i()) printf("Device not found!\n");
+    if(!mpu_who_am_i()) printf("Device not found!\n");
 
     mpu_sleep(MPU_SLEEP_ALL_OFF);
 
-    mpu_fsr(MPU_FSR_500DPS, MPU_AFSR_2G);
+    mpu_fsr(MPU_FSR_1000DPS, MPU_AFSR_8G);
 
     mpu_calibrate_gyro(10);
 
-    while (1) {
+    while(1){
         if(imu.fn.read(MPU_ALL | MPU_SCALED)){
-            printf("Accel: %.2f %.2f %.2f g\n",
-                   imu.v.accel.g.x,
-                   imu.v.accel.g.y,
-                   imu.v.accel.g.z);
+            printf("Accel: %.2f %.2f %.2f g, Temp: %.2f°C, Gyro: %.2f %.2f %.2f\n",
+                   imu.v.accel.g.x, imu.v.accel.g.y, imu.v.accel.g.z,
+                   imu.v.temp.celsius,
+                   imu.v.gyro.dps.x, imu.v.gyro.dps.y, imu.v.gyro.dps.z);
         }
         sleep_ms(500);
     }
@@ -160,21 +160,18 @@ And set 'device' as active.
 | `bool mpu_stby(mpu_stby_t)` | Enables/disables standby per axis, sensor or all |
 | `bool mpu_read_sensor(mpu_sensor_s)` | Reads sensor data (raw or scaled) |
 | `bool mpu_calibrate_gyro(samples)` | Computes `samples` **(5-20)** time to calculate gyro zero-offset |
-| `bool mpu_cycle_mode(mpu_cycle_t, smplrt_wake)` | Activate/deactivate **cycle** or **cycle low power** mode and set the mpu_smplrt_t |
+| `bool mpu_cycle_mode(mpu_cycle_t, smplrt_wake)` | Activate/deactivate **cycle** mode with **low power** option and set the `mpu_lp_wake_t` |
 
 #### Interrupt Functions (Experimental)
 
 If you wanna use interrupts `#define MPU_INT_PIN` can not be `0`.
+And if you wan't interrupt pin pull-up set `#define MPU_INT_PULLUP` to `1`.
 
 | Function | Description |
 |----------|------------|
 | `bool mpu_int_pin_cfg(mpu_int_pin_cfg_t)` | Configures the interrupt pin choosen with `mpu_int_pin_cfg_t` |
 | `bool mpu_int_enable(mpu_int_enable_t)` | Enables interrupts choosen with `mpu_int_enable_t` |
 | `bool mpu_int_status(void)` | Reads the INT_STATUS register and returns `true` if any is set |
-
-#### Cycle Mode (Experimental)
-
-if you wanna use the `mpu_cycle_mode(mpu_cycle_t mode, uint8_t smplrt_wake);` function the `#define MPU_USE_CYCLE` must be set to `1`.
 
 ---
 
@@ -199,20 +196,6 @@ g = raw / fsr_divider
 ```
 °C = (raw / 340) + 36.53
 ```
-
----
-
-## Design Philosophy
-
-This driver:
-
-- Avoids dynamic memory
-- Avoids hidden global state (except calibration offset)
-- Uses explicit configuration
-- Provides register-level transparency
-- Emulates object-oriented behavior using structured function pointers
-
-The goal is clarity, control and minimal abstraction for embedded systems.
 
 ---
 
@@ -245,7 +228,7 @@ https://github.com/Gnibor/MPU60X0_RaspberryPi_Pico
 
 ## Status
 
-Early but functional implementation.  
+Not complete yet but functional implementation.  
 Actively developed toward full MPU-6050 feature support.
 
-Contributions (especially with I²C_SLV and FIFO), suggestions and improvements are welcome.
+Contributions, suggestions and improvements (especially with the Interrupt thing) are welcome.
