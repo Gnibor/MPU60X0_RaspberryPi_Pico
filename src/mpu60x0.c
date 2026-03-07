@@ -443,7 +443,7 @@ bool mpu_int_pin_cfg(mpu_int_pin_cfg_t cfg){
 bool mpu_int_enable(mpu_int_enable_t type){
 	if(!mpu_read_register(MPU_REG_INT_ENABLE, g_mpu_cache, 1, true)) return false;
 
-	g_mpu_cache[0] &= ~MPU_INT_PIN_CFG_ALL;
+	g_mpu_cache[0] &= ~MPU_INT_ENABLE_ALL;
 	g_mpu_cache[0] |= type;
 
 	// Write back to registers
