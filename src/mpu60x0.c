@@ -473,25 +473,40 @@ void mpu_irq_handler(uint gpio, uint32_t events){
     }
 }
 
-// ===================================
-// === Interrupt pin configuration ===
-// ===================================
+// ==========================================
+// ====== Interrupt Pin configuration =======
+// ==========================================
+// * Configure what the inerrupt pin of the *
+// * MPU schould do.                        *
+// * The function takes the bitmask given   *
+// * as `cfg` and writes it to the          *
+// * INT_PIN_CFG register.                  *
+// ==========================================
+//
+// argument:
+// 	cfg = bitmask for the INT_PIN_CFG
+// 	      register
+//
+// return:
+// 	true = everything is ok
+// 	false = could not write to the
+// 	        INT_PIN_CFG register
+// ==========================================
 bool mpu_int_pin_cfg(mpu_int_pin_cfg_t cfg){
-	if(!mpu_read_register(MPU_REG_INT_PIN_CFG, g_mpu_cache, 1, true)) return false;
+	if(!mpu_read_register(MPU_REG_INT_PIN_CFG, g_mpu_cache, 1, true)) return false; // Reads the INT_PIN_CFG register and save it in g_mpu_cache
 
-	g_mpu_cache[0] &= ~MPU_INT_PIN_CFG_ALL;
-	g_mpu_cache[0] |= cfg;
+	g_mpu_cache[0] &= ~MPU_INT_PIN_CFG_ALL; // Unsets all interrupt bits
+	g_mpu_cache[0] |= cfg; // Set the bits given in `cfg`
 
-	// Write back to registers
-	if(!mpu_write_register((uint8_t[]){MPU_REG_INT_PIN_CFG, g_mpu_cache[0]}, 2, false)) return false;
+	if(!mpu_write_register((uint8_t[]){MPU_REG_INT_PIN_CFG, g_mpu_cache[0]}, 2, false)) return false; // Write back to registers
 
-	sleep_ms(5);
+	sleep_ms(2); // Little activation pause
 
-	return true;
+	return true; // If everything goes right
 }
 
 // =============================================
-// ====== Interrupt Motion configuration =======
+// ====== Motion Interrupt configuration =======
 // =============================================
 // * Prepare for motion interrupts.            *
 // * The function takes how many milli seconds *
