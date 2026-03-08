@@ -72,17 +72,20 @@
 
 /*
  * Identifiers for selecting specific sensor blocks
- * Used in mpu_read()
+ * Used in mpu_read_sensor(), mpu_calibrate()
  */
 typedef enum{
-	MPU_ACCEL = (1 << 0),
-	MPU_ACCEL_X = ((1 << 4) | MPU_ACCEL),
-	MPU_ACCEL_Y = ((1 << 5) | MPU_ACCEL),
-	MPU_ACCEL_Z = ((1 << 6) | MPU_ACCEL),
-	MPU_TEMP = (1 << 1),
-	MPU_GYRO = (1 << 2),
-	MPU_ALL = (MPU_ACCEL | MPU_TEMP | MPU_GYRO),
-	MPU_SCALED = (1 << 3)
+	MPU_ACCEL   =  (1 << 0), // 0b00000001 0x01
+	MPU_ACCEL_X = ((1 << 4) | MPU_ACCEL), // 0b00010001 0x11
+	MPU_ACCEL_Y = ((1 << 5) | MPU_ACCEL), // 0b00100001 0x21
+	MPU_ACCEL_Z = ((1 << 6) | MPU_ACCEL), // 0b01000001 0x41
+	MPU_TEMP    =  (1 << 1), // 0b00000010 0x02
+	MPU_GYRO    =  (1 << 2), // 0b00000100 0x04
+	MPU_GYRO_X  = ((1 << 4) | (1 << 7) | MPU_GYRO), // 0b10010100 0x94
+	MPU_GYRO_Y  = ((1 << 5) | (1 << 7) | MPU_GYRO), // 0b10100100 0xA4
+	MPU_GYRO_Z  = ((1 << 6) | (1 << 7) | MPU_GYRO), // 0b11000100 0xC4
+	MPU_SCALED  =  (1 << 3), // 0b00001000 0x08
+	MPU_ALL     = (MPU_ACCEL | MPU_TEMP | MPU_GYRO) // 0b00000111 0x07
 } mpu_sensor_t;
 
 /*
