@@ -490,31 +490,50 @@ bool mpu_int_pin_cfg(mpu_int_pin_cfg_t cfg){
 	return true;
 }
 
-// ======================================
-// === Interrupt Motion configuration ===
-// ======================================
+// =============================================
+// ====== Interrupt Motion configuration =======
+// =============================================
+// * Prepare for motion interrupts.            *
+// * The function takes how many milli seconds *
+// * the sensor has to move and with how much  *
+// * milli gram of force it has to move.       *
+// * And writes the info in the INT_MOTION_CFG *
+// * register.                                 *
+// =============================================
+//
+// argument:
+// 	ms = milli sedonds to move 1-255
+// 	mg = milli gram of force 1-255 * 32
+//
+// return:
+// 	true = everything ok could write cfg
+// 	false = error could not write cfg
+// =============================================
 bool mpu_int_motion_cfg(uint8_t ms, uint16_t mg){
-	if(ms < 1 || mg < 32) return false;
-	else if(mg < 32) mg = 1;
-	else mg /= 32;
+	if(ms < 1) ms = 1;           // Check if argument `ms` are to small
+	else if (ms > 255) ms = 255; // or to big and set it to min/max
 
-	if(!mpu_ahpf(MPU_AHPF_5HZ)) return false;
+	if(mg < 32) mg = 1;              // Check if `mg` is to small
+	else if(mg > 8160) mg = 255;     // or to big and set to min/max
+	else mg /= 32;                   // else divide by 32 for the mpu
 
-	if(!mpu_write_register((uint8_t[]){MPU_REG_MOT_THR, mg, ms}, 3, false)) return false;
+	if(!mpu_ahpf(MPU_AHPF_5HZ)) return false; // Set the accel high pass filter to 5Hz
 
-	sleep_ms(5);
+	if(!mpu_write_register((uint8_t[]){MPU_REG_MOT_THR, mg, ms}, 3, false)) return false; // Write the motion threashold to the given arguments
 
-	return true;
+	sleep_ms(2); // Little activation pause
+
+	return true; // If everything is ok
 }
 
-// ============================================================
-// =================== Interrupt pin enable ===================
-// ============================================================
-// * Set the interrupt handler callback to mpu_irq_handler.   *
-// * Reads the INT_ENABLE register, unsets the bits for       *
-// * the interrupts then sets bit in the INT_STATUS register, *
-// * with the bitmask given as the argument `interrupt`.      *
-// ============================================================
+// ==============================================================
+// ==================== Interrupt pin enable ====================
+// ==============================================================
+// * Set the interrupt handler callback to `mpu_irq_handler`.   *
+// * Reads the INT_ENABLE register, unsets the bits for         *
+// * the interrupts then sets bit in the INT_ENABLE register,   *
+// * with the bitmask given as the argument `interrupt`.        *
+// ==============================================================
 //
 // arguments:
 // 	interrupt = takes a bitmask for the INT_STATUS register
@@ -522,7 +541,7 @@ bool mpu_int_motion_cfg(uint8_t ms, uint16_t mg){
 // return:
 // 	true = when it could write to the INT_STATUS register
 // 	false = if anything goes wrong
-// ============================================================
+// ==============================================================
 bool mpu_int_enable(mpu_int_enable_t interrupt){
 	gpio_set_irq_enabled_with_callback(MPU_INT_PIN, GPIO_IRQ_EDGE_RISE, true, &mpu_irq_handler); // Listen MPU_INT_PIN call `mpu_irq_handler` if pin HIGH
 
