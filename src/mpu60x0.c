@@ -396,76 +396,84 @@ bool mpu_calibrate(mpu_sensor_t sensor, uint8_t samples){
 	return true;
 }
 
-// ===========================================
-// === Read Sensor Data + Optional Scaling ===
-// ===========================================
-bool mpu_read_sensor(mpu_sensor_t sensors){
-	if(!g_mpu) return false;
-	// Read all sensors
-	uint8_t mask = (sensors & MPU_ALL);
-	// If to or more sensors are read it reads all for less overhead.
-	if((mask & (mask - 1))){
-		if(!mpu_read_register(MPU_REG_ACCEL_XOUT_H, g_mpu_cache, 14, false)) return false;
+// ============================================
+// === Read Sensor Data + Optional Scaling ====
+// ============================================
+// * Reads all sensors or only optional       *
+// * scaling one based on the given argument. *
+// ============================================
+// argument:
+// 	sensor = Takes sensors given as
+// 		 `mpu_sensor_t`
+//
+// return:
+// 	true = could read (and Calculate) the
+// 	       given `sensors`
+// 	false = could not read or calculate 
+// 		the given `sensors`
+// ============================================
+bool mpu_read_sensor(mpu_sensor_t sensor){
+	if(!g_mpu) return false; // Check if the global device pointer is set
 
-		g_mpu->v.accel.raw.x = (g_mpu_cache[0]  << 8) | g_mpu_cache[1];
-		g_mpu->v.accel.raw.y = (g_mpu_cache[2]  << 8) | g_mpu_cache[3];
-		g_mpu->v.accel.raw.z = (g_mpu_cache[4]  << 8) | g_mpu_cache[5];
-		g_mpu->v.temp.raw =    (g_mpu_cache[6]  << 8) | g_mpu_cache[7];
-		g_mpu->v.gyro.raw.x =  (g_mpu_cache[8]  << 8) | g_mpu_cache[9];
-		g_mpu->v.gyro.raw.y =  (g_mpu_cache[10] << 8) | g_mpu_cache[11];
-		g_mpu->v.gyro.raw.z =  (g_mpu_cache[12] << 8) | g_mpu_cache[13];
+	uint8_t mask = (sensor & MPU_ALL); // A mask where only sensor bits are given
+	
+	if((mask & (mask - 1))){ // If two or more sensors are read it reads all for less overhead.
+
+		if(!mpu_read_register(MPU_REG_ACCEL_XOUT_H, g_mpu_cache, 14, false)) return false; // Read all output register
+
+		g_mpu->v.accel.raw.x = (g_mpu_cache[0]  << 8) | g_mpu_cache[1]; // Save raw accelerometer x axis
+		g_mpu->v.accel.raw.y = (g_mpu_cache[2]  << 8) | g_mpu_cache[3]; // Save raw accelerometer y axis
+		g_mpu->v.accel.raw.z = (g_mpu_cache[4]  << 8) | g_mpu_cache[5]; // Save raw accelerometer z axis
+		g_mpu->v.temp.raw =    (g_mpu_cache[6]  << 8) | g_mpu_cache[7]; // Save raw temperatur
+		g_mpu->v.gyro.raw.x =  (g_mpu_cache[8]  << 8) | g_mpu_cache[9]; // Save raw gyro x axis
+		g_mpu->v.gyro.raw.y =  (g_mpu_cache[10] << 8) | g_mpu_cache[11]; // Save raw gyro y axis ;
+		g_mpu->v.gyro.raw.z =  (g_mpu_cache[12] << 8) | g_mpu_cache[13]; // Save raw gyro z axis ;
 
 	}else{
-		// Only accelerometer
-		if(mask & MPU_ACCEL){
-			if(!mpu_read_register(MPU_REG_ACCEL_XOUT_H, g_mpu_cache, 6, false)) return false;
+		if(mask & MPU_ACCEL){ // Only accelerometer
+			if(!mpu_read_register(MPU_REG_ACCEL_XOUT_H, g_mpu_cache, 6, false)) return false; // Read accelerometer output register
 
-			g_mpu->v.accel.raw.x = (g_mpu_cache[0]  << 8) | g_mpu_cache[1];
-			g_mpu->v.accel.raw.y = (g_mpu_cache[2]  << 8) | g_mpu_cache[3];
-			g_mpu->v.accel.raw.z = (g_mpu_cache[4]  << 8) | g_mpu_cache[5];
-
-		}
-		// Only temperatur
-		if(mask & MPU_TEMP){
-			if(!mpu_read_register(MPU_REG_TEMP_OUT_H, g_mpu_cache, 2, false)) return false;
-
-			g_mpu->v.temp.raw = (g_mpu_cache[0]  << 8) | g_mpu_cache[1];
+			g_mpu->v.accel.raw.x = (g_mpu_cache[0]  << 8) | g_mpu_cache[1]; // Save raw accelerometer x axis
+			g_mpu->v.accel.raw.y = (g_mpu_cache[2]  << 8) | g_mpu_cache[3]; // Save raw accelerometer y axis
+			g_mpu->v.accel.raw.z = (g_mpu_cache[4]  << 8) | g_mpu_cache[5]; // Save raw accelerometer z axis
 
 		}
-		// Only gyroscope
-		if(mask & MPU_GYRO){
-			if(!mpu_read_register(MPU_REG_GYRO_XOUT_H, g_mpu_cache, 6, false)) return false;
+		if(mask & MPU_TEMP){ // Only temperatur
+			if(!mpu_read_register(MPU_REG_TEMP_OUT_H, g_mpu_cache, 2, false)) return false; // Reads temperatur output register
 
-			g_mpu->v.gyro.raw.x = (g_mpu_cache[0]  << 8) | g_mpu_cache[1];
-			g_mpu->v.gyro.raw.y = (g_mpu_cache[2] << 8) | g_mpu_cache[3];
-			g_mpu->v.gyro.raw.z = (g_mpu_cache[4] << 8) | g_mpu_cache[5];
+			g_mpu->v.temp.raw = (g_mpu_cache[0]  << 8) | g_mpu_cache[1]; // Save raw temperatur
+
+		}
+		if(mask & MPU_GYRO){ // Only gyroscope
+			if(!mpu_read_register(MPU_REG_GYRO_XOUT_H, g_mpu_cache, 6, false)) return false; // Read gyro output register
+
+			g_mpu->v.gyro.raw.x = (g_mpu_cache[0]  << 8) | g_mpu_cache[1]; // Save raw gyro x axis
+			g_mpu->v.gyro.raw.y = (g_mpu_cache[2] << 8) | g_mpu_cache[3]; // Save raw gyro y axis
+			g_mpu->v.gyro.raw.z = (g_mpu_cache[4] << 8) | g_mpu_cache[5]; // Save raw gyro z axis
 		}
 	}
 
-	// Optional: scale raw values
-	if(sensors & MPU_SCALED){
-		// Raw -> G for accelerometer
-		if(mask & MPU_ACCEL){
-			g_mpu->v.accel.g.x = (g_mpu->v.accel.raw.x - g_mpu->conf.offset_accel.x) / g_mpu->conf.fsr_div.accel;
-			g_mpu->v.accel.g.y = (g_mpu->v.accel.raw.y - g_mpu->conf.offset_accel.y) / g_mpu->conf.fsr_div.accel;
-			g_mpu->v.accel.g.z = (g_mpu->v.accel.raw.z - g_mpu->conf.offset_accel.z) / g_mpu->conf.fsr_div.accel;
+	if(sensor & MPU_SCALED){ // Optional: scale raw values
+		if(mask & MPU_ACCEL){ // Raw -> G for accelerometer
+			g_mpu->v.accel.g.x = (g_mpu->v.accel.raw.x - g_mpu->conf.offset_accel.x) / g_mpu->conf.fsr_div.accel; // Calculate raw x axis to G
+			g_mpu->v.accel.g.y = (g_mpu->v.accel.raw.y - g_mpu->conf.offset_accel.y) / g_mpu->conf.fsr_div.accel; // Calculate raw y axis to G
+			g_mpu->v.accel.g.z = (g_mpu->v.accel.raw.z - g_mpu->conf.offset_accel.z) / g_mpu->conf.fsr_div.accel; // Calculate raw z axis to G
 		}
-		// Raw -> °C
-		if(mask & MPU_TEMP)
-			g_mpu->v.temp.celsius = (g_mpu->v.temp.raw / 340.0f) + 36.53f;
-		// Raw -> °/s for gyroscope
-		if(mask & MPU_GYRO){
-			g_mpu->v.gyro.dps.x = (g_mpu->v.gyro.raw.x - g_mpu->conf.offset_gyro.x) / g_mpu->conf.fsr_div.gyro;
-			g_mpu->v.gyro.dps.y = (g_mpu->v.gyro.raw.y - g_mpu->conf.offset_gyro.y) / g_mpu->conf.fsr_div.gyro;
-			g_mpu->v.gyro.dps.z = (g_mpu->v.gyro.raw.z - g_mpu->conf.offset_gyro.z) / g_mpu->conf.fsr_div.gyro;
+		if(mask & MPU_TEMP) // Raw -> °C
+			g_mpu->v.temp.celsius = (g_mpu->v.temp.raw / 340.0f) + 36.53f; // Calculate raw temperatur to °C
+
+		if(mask & MPU_GYRO){ // Raw -> °/s for gyroscope
+			g_mpu->v.gyro.dps.x = (g_mpu->v.gyro.raw.x - g_mpu->conf.offset_gyro.x) / g_mpu->conf.fsr_div.gyro; // Calculate raw x axis to °/s
+			g_mpu->v.gyro.dps.y = (g_mpu->v.gyro.raw.y - g_mpu->conf.offset_gyro.y) / g_mpu->conf.fsr_div.gyro; // Calculate raw y axis to °/s
+			g_mpu->v.gyro.dps.z = (g_mpu->v.gyro.raw.z - g_mpu->conf.offset_gyro.z) / g_mpu->conf.fsr_div.gyro; // Calculate raw z axis to °/s
 		}
 	}
 
 	return true;
 }
 
-#if MPU_INT_PIN
-volatile bool g_mpu_int_flag;
+#if MPU_INT_PIN // Checks if MPU_INT_PIN is greater than 0
+volatile bool g_mpu_int_flag; // True if an interrupt occurred, else false
 
 // ======================================
 // ========= Interrupt Handler ==========

@@ -195,7 +195,7 @@ bool mpu_smplrt_div(mpu_smplrt_div_t smplrt_div);
 bool mpu_dlpf_cfg(mpu_dlpf_cfg_t cfg);
 bool mpu_fsr(mpu_fsr_t fsr, mpu_afsr_t afsr);
 bool mpu_calibrate(mpu_sensor_t sensor, uint8_t sample); // calibrate sensor offsets
-bool mpu_read_sensor(mpu_sensor_t sensors); // 0=all 1=accel 2=temp 3=gyro
+bool mpu_read_sensor(mpu_sensor_t sensor);
 bool mpu_cycle_mode(mpu_cycle_t mode, mpu_lp_wake_t wake_up_rate);
 #if MPU_INT_PIN
 void mpu_irq_handler(uint gpio, uint32_t events);
