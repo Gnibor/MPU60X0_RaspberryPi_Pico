@@ -341,7 +341,7 @@ bool mpu_fsr(mpu_fsr_t fsr, mpu_afsr_t afsr){
 // ======= Calibrate Accelerometer or Gyroscope =======
 // ========== (determine zero-point offset) ===========
 // ====================================================
-// * Can calibrate the accelerometer or gyroscope.    *
+// * Calibrate the accelerometer or gyroscope.        *
 // * Use the `mpu_sensor_t` for setting wich sensor   *
 // * should get calibrated. Use for the Accelerometer *
 // * the in `mpu_sensor_t` given axis type or your    *
@@ -406,9 +406,12 @@ bool mpu_calibrate(mpu_sensor_t sensor, uint8_t samples){
 		g_mpu->conf.offset_accel.y = sum_y / samples; // Store y axis average as offset_accel.y
 		g_mpu->conf.offset_accel.z = sum_z / samples; // Store z axis average as offset_accel.z
 
-		if(sensor & MPU_ACCEL_X) g_mpu->conf.offset_accel.x -= 16384.0f; // minus earth own gravity
-		else if(sensor & MPU_ACCEL_Y) g_mpu->conf.offset_accel.y -= 16384.0f; // minus earth own gravity
-		else if(sensor & MPU_ACCEL_Z) g_mpu->conf.offset_accel.z -= 16384.0f; // minus earth own gravity
+		if(sensor & MPU_ACCEL_X)
+			g_mpu->conf.offset_accel.x -= 16384.0f; // minus earth own gravity
+		else if(sensor & MPU_ACCEL_Y)
+			g_mpu->conf.offset_accel.y -= 16384.0f; // minus earth own gravity
+		else if(sensor & MPU_ACCEL_Z)
+			g_mpu->conf.offset_accel.z -= 16384.0f; // minus earth own gravity
 	}
 
 	return true; // If everything goes right
@@ -565,12 +568,12 @@ bool mpu_int_pin_cfg(mpu_int_pin_cfg_t cfg){
 // 	false = error could not write cfg
 // =============================================
 bool mpu_int_motion_cfg(uint8_t ms, uint16_t mg){
-	if(ms < 1) ms = 1;           // Check if argument `ms` are to small
+	if(ms < 1)         ms = 1;   // Check if argument `ms` are to small
 	else if (ms > 255) ms = 255; // or to big and set it to min/max
 
-	if(mg < 32) mg = 1;              // Check if `mg` is to small
-	else if(mg > 8160) mg = 255;     // or to big and set to min/max
-	else mg /= 32;                   // else divide by 32 for the mpu
+	if(mg < 32)        mg = 1;   // Check if `mg` is to small
+	else if(mg > 8160) mg = 255; // or to big and set to min/max
+	else               mg /= 32; // else divide by 32 for the mpu
 
 	if(!mpu_ahpf(MPU_AHPF_5HZ)) return false; // Set the accel high pass filter to 5Hz
 
@@ -632,8 +635,8 @@ bool mpu_int_status(void){
 	if(!mpu_read_register(MPU_REG_INT_STATUS, g_mpu_cache, 1, false)) return false; // Read INT_STATUS register save output in g_mpu_cache else return false
 
 	if((g_mpu_cache[0] & MPU_DATA_RDY_INT) || // Check data ready interrupt
-	   (g_mpu_cache[0] & MPU_I2C_MST_INT) || // Check I²C master interrupt
-	   (g_mpu_cache[0] & MPU_MOTION_INT) || // Check motion interrupt
+	   (g_mpu_cache[0] & MPU_I2C_MST_INT)  || // Check I²C master interrupt
+	   (g_mpu_cache[0] & MPU_MOTION_INT)   || // Check motion interrupt
 	   (g_mpu_cache[0] & MPU_FIFO_OFLOW_INT)) return true; // Check fifo overflow interrupt and return true if any was set
 	else return false;
 }
