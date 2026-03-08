@@ -338,62 +338,80 @@ bool mpu_fsr(mpu_fsr_t fsr, mpu_afsr_t afsr){
 }
 
 // ====================================================
-// === Calibrate gyro (determine zero-point offset) ===
+// ======= Calibrate Accelerometer or Gyroscope =======
+// ========== (determine zero-point offset) ===========
+// ====================================================
+// * Can calibrate the accelerometer or gyroscope.    *
+// * Use the `mpu_sensor_t` for setting wich sensor   *
+// * should get calibrated. Use for the Accelerometer *
+// * the in `mpu_sensor_t` given axis type or your    *
+// * accelerometer will get complietly 0.             *
+// * Offset will get saved in the device struct.      *
+// ====================================================
+//
+// argument:
+// 	sensor = mpu_sensor_t sets wich sensor(s)
+// 	samples = how many samples it should make
+//
+// return:
+// 	true = everything is ok
+// 	false = struct not set to use or could not read
+// 	        the sensor
 // ====================================================
 bool mpu_calibrate(mpu_sensor_t sensor, uint8_t samples){
-	if(!g_mpu) return false;
+	if(!g_mpu) return false; // Check if g_mpu is set to the device pointer 
 
-	int64_t sum_gx = 0;
-	int64_t sum_gy = 0;
-	int64_t sum_gz = 0;
+	int64_t sum_x = 0; // cache
+	int64_t sum_y = 0; // cache
+	int64_t sum_z = 0; // cache
 
-	uint8_t mask = (sensor & MPU_ALL);
+	uint8_t mask = (sensor & MPU_ALL); // mask where only the sensors bits are given
 
-	if(mask & MPU_GYRO){
+	if(mask & MPU_GYRO){ // Checks if gyro should be calibrated
 		for(uint8_t i = 0; i < samples; i++){
-			if(!mpu_read_register(MPU_REG_GYRO_XOUT_H, g_mpu_cache, 6, false)) return false;
+			if(!mpu_read_register(MPU_REG_GYRO_XOUT_H, g_mpu_cache, 6, false)) return false; // Read the gyro output
 
-			g_mpu->v.gyro.raw.x = (g_mpu_cache[0]  << 8) | g_mpu_cache[1];
-			g_mpu->v.gyro.raw.y = (g_mpu_cache[2]  << 8) | g_mpu_cache[3];
-			g_mpu->v.gyro.raw.z = (g_mpu_cache[4]  << 8) | g_mpu_cache[5];
+			g_mpu->v.gyro.raw.x = (g_mpu_cache[0]  << 8) | g_mpu_cache[1]; // Store x axis output in gyro.raw.x
+			g_mpu->v.gyro.raw.y = (g_mpu_cache[2]  << 8) | g_mpu_cache[3]; // Store y axis output in gyro.raw.y
+			g_mpu->v.gyro.raw.z = (g_mpu_cache[4]  << 8) | g_mpu_cache[5]; // Store z axis output in gyro.raw.z
 
-			sum_gx += g_mpu->v.gyro.raw.x;
-			sum_gy += g_mpu->v.gyro.raw.y;
-			sum_gz += g_mpu->v.gyro.raw.z;
+			sum_x += g_mpu->v.gyro.raw.x; // Add x axis output to sum_x
+			sum_y += g_mpu->v.gyro.raw.y; // Add y axis output to sum_y
+			sum_z += g_mpu->v.gyro.raw.z; // Add z axis output to sum_z
 
 			sleep_ms(5); // small delay between measurements
 		}
 
-		// Store averages as offsets
-		g_mpu->conf.offset_gyro.x = sum_gx / samples;
-		g_mpu->conf.offset_gyro.y = sum_gy / samples;
-		g_mpu->conf.offset_gyro.z = sum_gz / samples;
-	}else if (mask & MPU_ACCEL){
+		g_mpu->conf.offset_gyro.x = sum_x / samples; // Store x axis average as offset_gyro.x
+		g_mpu->conf.offset_gyro.y = sum_y / samples; // Store y axis average as offset_gyro.y
+		g_mpu->conf.offset_gyro.z = sum_z / samples; // Store z axis average as offset_gyro.z
+
+	}else if (mask & MPU_ACCEL){ // Checks if accelerometer should be calibrated
 		for(uint8_t i = 0; i < samples; i++){
-			if(!mpu_read_register(MPU_REG_GYRO_XOUT_H, g_mpu_cache, 6, false)) return false;
+			sum_x = 0; sum_y = 0; sum_z = 0; // Set sum back to `0` in case both sensors got read
+			if(!mpu_read_register(MPU_REG_ACCEL_XOUT_H, g_mpu_cache, 6, false)) return false; // Read the accelerometer output
 
-			g_mpu->v.accel.raw.x = (g_mpu_cache[0]  << 8) | g_mpu_cache[1];
-			g_mpu->v.accel.raw.y = (g_mpu_cache[2]  << 8) | g_mpu_cache[3];
-			g_mpu->v.accel.raw.z = (g_mpu_cache[4]  << 8) | g_mpu_cache[5];
+			g_mpu->v.accel.raw.x = (g_mpu_cache[0]  << 8) | g_mpu_cache[1]; // Store x axis output in accel.raw.x
+			g_mpu->v.accel.raw.y = (g_mpu_cache[2]  << 8) | g_mpu_cache[3]; // Store y axis output in accel.raw.y
+			g_mpu->v.accel.raw.z = (g_mpu_cache[4]  << 8) | g_mpu_cache[5]; // Store z axis output in accel.raw.z
 
-			sum_gx += g_mpu->v.accel.raw.x;
-			sum_gy += g_mpu->v.accel.raw.y;
-			sum_gz += g_mpu->v.accel.raw.z;
+			sum_x += g_mpu->v.accel.raw.x; // Add x axis output to sum_x
+			sum_y += g_mpu->v.accel.raw.y; // Add y axis output to sum_y
+			sum_z += g_mpu->v.accel.raw.z; // Add z axis output to sum_z
 
 			sleep_ms(5); // small delay between measurements
 		}
 
-		// Store averages as offsets
-		g_mpu->conf.offset_accel.x = sum_gx / samples;
-		g_mpu->conf.offset_accel.y = sum_gy / samples;
-		g_mpu->conf.offset_accel.z = sum_gz / samples;
+		g_mpu->conf.offset_accel.x = sum_x / samples; // Store x axis average as offset_accel.x
+		g_mpu->conf.offset_accel.y = sum_y / samples; // Store y axis average as offset_accel.y
+		g_mpu->conf.offset_accel.z = sum_z / samples; // Store z axis average as offset_accel.z
 
-		if(sensor & MPU_ACCEL_X) g_mpu->conf.offset_accel.x -= 16384.0f;
-		else if(sensor & MPU_ACCEL_Y) g_mpu->conf.offset_accel.y -= 16384.0f;
-		else if(sensor & MPU_ACCEL_Z) g_mpu->conf.offset_accel.z -= 16384.0f;
+		if(sensor & MPU_ACCEL_X) g_mpu->conf.offset_accel.x -= 16384.0f; // minus earth own gravity
+		else if(sensor & MPU_ACCEL_Y) g_mpu->conf.offset_accel.y -= 16384.0f; // minus earth own gravity
+		else if(sensor & MPU_ACCEL_Z) g_mpu->conf.offset_accel.z -= 16384.0f; // minus earth own gravity
 	}
 
-	return true;
+	return true; // If everything goes right
 }
 
 // ============================================
