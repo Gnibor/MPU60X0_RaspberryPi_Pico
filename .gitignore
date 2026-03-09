@@ -1,4 +1,5 @@
 datasheet/
+.gitignore
 
 # Build directory
 build/
