@@ -35,6 +35,8 @@
 #include <stdio.h>
 #include "mpu60x0.h"
 #include "MPU60X0_reg_map.h"
+#include "rp_pico.h"
+#include "ansi-esc.h"
 
 // ===========================
 // === Function prototypes ===
@@ -51,18 +53,26 @@ static int g_mpu_ret_cache = 0; // Temporary buffer for return values
 // === Initialize MPU ===
 // ==========================
 mpu_s mpu_init(i2c_inst_t *i2c_port, mpu_addr_t addr){
-	i2c_init(MPU_I2C_PORT, 400 * 1000); // 400 kHz I2C
-	gpio_set_function(MPU_SDA_PIN, GPIO_FUNC_I2C);
-	gpio_set_function(MPU_SCL_PIN, GPIO_FUNC_I2C);
+	if(!is_i2c_initialized(MPU_I2C_PORT)){
+		i2c_init(MPU_I2C_PORT, 400 * 1000); // 400 kHz I2C
+		gpio_set_function(MPU_SDA_PIN, GPIO_FUNC_I2C);
+		gpio_set_function(MPU_SCL_PIN, GPIO_FUNC_I2C);
+		LOG_I("mpu_init(): I²C initialized");
+	}else{
+		LOG_I("mpu_init(): I²C is already initialized");
+	}
 
 #if MPU_USE_PULLUP
 	gpio_pull_up(MPU_SDA_PIN);
 	gpio_pull_up(MPU_SCL_PIN);
+	LOG_D("mpu_init(): I²C pull up is on");
 #endif
 
+#if MPU_INT_PIN
 	// Configure optional interrupt pin
 	gpio_init(MPU_INT_PIN);
 	gpio_set_dir(MPU_INT_PIN, GPIO_IN);
+#endif
 #if MPU_INT_PULLUP
 	gpio_pull_up(MPU_INT_PIN);
 #endif
@@ -386,7 +396,8 @@ bool mpu_calibrate(mpu_sensor_t sensor, uint8_t samples){
 		g_mpu->conf.offset_gyro.y = sum_y / samples; // Store y axis average as offset_gyro.y
 		g_mpu->conf.offset_gyro.z = sum_z / samples; // Store z axis average as offset_gyro.z
 
-	}else if (mask & MPU_ACCEL){ // Checks if accelerometer should be calibrated
+	}
+	if (mask & MPU_ACCEL){ // Checks if accelerometer should be calibrated
 		for(uint8_t i = 0; i < samples; i++){
 			sum_x = 0; sum_y = 0; sum_z = 0; // Set sum back to `0` in case both sensors got read
 			if(!mpu_read_register(MPU_REG_ACCEL_XOUT_H, g_mpu_cache, 6, false)) return false; // Read the accelerometer output

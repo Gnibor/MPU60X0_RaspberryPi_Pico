@@ -14,10 +14,12 @@ add_executable(${PROJECT_NAME}
     src/main.c
     src/default.c
     src/mpu60x0.c
+    lib/rp_pico.c
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_LIST_DIR}/include
+    ${CMAKE_CURRENT_LIST_DIR}/lib
 )
 
 target_link_libraries(${PROJECT_NAME}
