@@ -50,7 +50,6 @@ int main(void){
 	printf("Try to calibrate GY-521\n");
 	sleep_ms(2000);
 	if(mpu_calibrate((MPU_ACCEL_X | MPU_GYRO), 10)) printf("GY-521 gyro and accel is now calibrated.\n");
-
 	//mpu_dlpf_cfg(MPU_DLPF_CFG_184HZ);
 
 	printf("how big is the struct: %dbytes\n", sizeof(mpu));

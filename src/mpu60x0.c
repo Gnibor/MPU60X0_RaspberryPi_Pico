@@ -152,12 +152,12 @@ bool mpu_read_register(uint8_t reg, uint8_t *out, uint8_t how_many, bool block){
 	}
 
 	if(!mpu_write_register(&reg, 1, true)){
-		LOG_E("mpu_read_register(): failed exec mpu_write_register(0x%02X, 1, true)", reg);
+		LOG_E("mpu_read_register(): failed to write reg 0x%02X", reg);
 		return false;
 	}
 	g_mpu_ret_cache = i2c_read_blocking(g_mpu->conf.i2c_port, g_mpu->conf.addr, out, how_many, block);
 	if(g_mpu_ret_cache == how_many){
-		LOG_D("mpu_read_register(): %d bytes written to reg 0x%02X", how_many, reg);
+		LOG_D("mpu_read_register(): %d bytes read from reg 0x%02X", how_many, reg);
 		return true;
 	}else{
 		LOG_E("mpu_read_register(): I²C failed at reg 0x%02X (return: %d)", reg, how_many);
@@ -280,7 +280,7 @@ bool mpu_sleep(mpu_sleep_t sleep){
 
 	sleep_ms(5); // Activation pause
 
-	LOG_I("mpu_sleep(): initiation done");
+	LOG_I("mpu_sleep(): done...");
 
 	return true;
 }
@@ -471,21 +471,21 @@ bool mpu_fsr(mpu_fsr_t fsr, mpu_afsr_t afsr){
 	// Gyro FSR bits
 	gc_mpu[0] &= ~MPU_FSR_2000DPS; // Delete bits 4:3
 	gc_mpu[0] |= fsr; // Set FSR Bits
-	LOG_D("mpu_fsr(): prepare fsr (0x%02X)", fsr);
+	LOG_I("mpu_fsr(): prepare fsr (0x%02X)", fsr);
 
 	// Automatic scaling calculation:
 	// 131 / 2^bits → sensitivity in °/s
 	g_mpu->conf.fsr_div.gyro = 131.0f / (1 << ((fsr >> 3) & 0x03));
-	LOG_D("mpu_fsr(): FSR_DIV set to %f", g_mpu->conf.fsr_div.gyro);
+	LOG_I("mpu_fsr(): FSR_DIV set to %d", g_mpu->conf.fsr_div.gyro);
 
 	// Accel FSR bits
 	gc_mpu[1] &= ~MPU_AFSR_16G;
 	gc_mpu[1] |= afsr;
-	LOG_D("mpu_fsr(): prepare afsr (0x%02X)", afsr);
+	LOG_I("mpu_fsr(): prepare afsr (0x%02X)", afsr);
 
 	// Automatic scaling calculation (raw / divider = G)
 	g_mpu->conf.fsr_div.accel = 16384.0f / (1 << ((afsr >> 3) & 0x03));
-	LOG_D("mpu_fsr(): AFSR_DIV set to %f", g_mpu->conf.fsr_div.accel);
+	LOG_I("mpu_fsr(): AFSR_DIV set to %d", g_mpu->conf.fsr_div.accel);
 
 	// Write back to registers
 	if(!mpu_write_register((uint8_t[]){MPU_REG_GYRO_CONFIG, gc_mpu[0], gc_mpu[1]}, 3, false)){
@@ -494,8 +494,6 @@ bool mpu_fsr(mpu_fsr_t fsr, mpu_afsr_t afsr){
 	}
 
 	sleep_ms(5);
-
-	LOG_I("mpu_fsr(): configured Full Scale Range. written 0x%02X, 0x%02X to reg GYRO_CONFIG (0x%02X)", gc_mpu[0], gc_mpu[1], MPU_REG_GYRO_CONFIG);
 
 	return true;
 }
@@ -521,7 +519,11 @@ bool mpu_fsr(mpu_fsr_t fsr, mpu_afsr_t afsr){
  * 	- false = struct not set to use or failed to read the sensor
  */
 bool mpu_calibrate(mpu_sensor_t sensor, uint8_t samples){
-	if(!g_mpu) return false; // Check if g_mpu is set to the device pointer 
+	if(!g_mpu){
+		return false;
+		LOG_E("mpu_calibrate(): empty "ANSI_ITALIC ANSI_BOLD"g_mpu"ANSI_RESET);
+		LOG_I("mpu_calibrate(): use mpu_use_struct() to set "ANSI_ITALIC ANSI_BOLD"g_mpu"ANSI_RESET);
+	}
 
 	int64_t sum_x = 0; // cache
 	int64_t sum_y = 0; // cache
@@ -530,8 +532,12 @@ bool mpu_calibrate(mpu_sensor_t sensor, uint8_t samples){
 	uint8_t mask = (sensor & MPU_ALL); // mask where only the sensors bits are given
 
 	if(mask & MPU_GYRO){ // Checks if gyro should be calibrated
+		LOG_I("mpu_calibrate(): starting gyro calibration...");
 		for(uint8_t i = 0; i < samples; i++){
-			if(!mpu_read_register(MPU_REG_GYRO_XOUT_H, gc_mpu, 6, false)) return false; // Read the gyro output
+			if(!mpu_read_register(MPU_REG_GYRO_XOUT_H, gc_mpu, 6, false)){ // Read the gyro output
+				LOG_E("mpu_calibrate(): failed to read 6 bytes from reg GYRO_XOUT_H (0x%02X)", MPU_REG_GYRO_XOUT_H);
+				return false;
+			}
 
 			g_mpu->v.gyro.raw.x = (gc_mpu[0]  << 8) | gc_mpu[1]; // Store x axis output in gyro.raw.x
 			g_mpu->v.gyro.raw.y = (gc_mpu[2]  << 8) | gc_mpu[3]; // Store y axis output in gyro.raw.y
@@ -548,11 +554,18 @@ bool mpu_calibrate(mpu_sensor_t sensor, uint8_t samples){
 		g_mpu->conf.offset_gyro.y = sum_y / samples; // Store y axis average as offset_gyro.y
 		g_mpu->conf.offset_gyro.z = sum_z / samples; // Store z axis average as offset_gyro.z
 
+		LOG_I("mpu_calibrate(): gyro calibration done");
+		LOG_D("mpu_calibrate(): gyro offset x=%d, y=%d, z=%d", g_mpu->conf.offset_gyro.x, g_mpu->conf.offset_gyro.y, g_mpu->conf.offset_gyro.z);
+
 	}
 	if (mask & MPU_ACCEL){ // Checks if accelerometer should be calibrated
+		LOG_I("mpu_calibrate(): starting accel calibration...");
 		for(uint8_t i = 0; i < samples; i++){
 			sum_x = 0; sum_y = 0; sum_z = 0; // Set sum back to `0` in case both sensors got read
-			if(!mpu_read_register(MPU_REG_ACCEL_XOUT_H, gc_mpu, 6, false)) return false; // Read the accelerometer output
+			if(!mpu_read_register(MPU_REG_ACCEL_XOUT_H, gc_mpu, 6, false)){ // Read the accel output
+				LOG_E("mpu_calibrate(): failed to read 6 bytes from reg ACCEL_XOUT_H (0x%02X)", MPU_REG_ACCEL_XOUT_H);
+				return false;
+			}
 
 			g_mpu->v.accel.raw.x = (gc_mpu[0]  << 8) | gc_mpu[1]; // Store x axis output in accel.raw.x
 			g_mpu->v.accel.raw.y = (gc_mpu[2]  << 8) | gc_mpu[3]; // Store y axis output in accel.raw.y
@@ -569,12 +582,15 @@ bool mpu_calibrate(mpu_sensor_t sensor, uint8_t samples){
 		g_mpu->conf.offset_accel.y = sum_y / samples; // Store y axis average as offset_accel.y
 		g_mpu->conf.offset_accel.z = sum_z / samples; // Store z axis average as offset_accel.z
 
-		if(sensor & MPU_ACCEL_X)
+		if(sensor & MPU_ACCEL_X){
 			g_mpu->conf.offset_accel.x -= 16384.0f; // minus earth own gravity
-		else if(sensor & MPU_ACCEL_Y)
+		}else if(sensor & MPU_ACCEL_Y){
 			g_mpu->conf.offset_accel.y -= 16384.0f; // minus earth own gravity
-		else if(sensor & MPU_ACCEL_Z)
+		}else if(sensor & MPU_ACCEL_Z){
 			g_mpu->conf.offset_accel.z -= 16384.0f; // minus earth own gravity
+		}
+		LOG_I("mpu_calibrate(): accel calibration done");
+		LOG_D("mpu_calibrate(): accel offset x=%d, y=%d, z=%d", g_mpu->conf.offset_accel.x, g_mpu->conf.offset_accel.y, g_mpu->conf.offset_accel.z);
 	}
 
 	return true; // If everything goes right
@@ -597,13 +613,20 @@ bool mpu_calibrate(mpu_sensor_t sensor, uint8_t samples){
  *	- If two sensors are given all three will be read (less I²C overhead), but only the given will be scaled (if given).
  */
 bool mpu_read_sensor(mpu_sensor_t sensor){
-	if(!g_mpu) return false; // Check if the global device pointer is set
+	if(!g_mpu){
+		return false;
+		LOG_E("mpu_read_sensor(): empty "ANSI_ITALIC ANSI_BOLD"g_mpu"ANSI_RESET);
+		LOG_I("mpu_read_sensor(): use mpu_use_struct() to set "ANSI_ITALIC ANSI_BOLD"g_mpu"ANSI_RESET);
+	}
 
 	uint8_t mask = (sensor & MPU_ALL); // A mask where only sensor bits are given
 	
 	if((mask & (mask - 1))){ // If two or more sensors are read it reads all for less overhead.
 
-		if(!mpu_read_register(MPU_REG_ACCEL_XOUT_H, gc_mpu, 14, false)) return false; // Read all output register
+		if(!mpu_read_register(MPU_REG_ACCEL_XOUT_H, gc_mpu, 14, false)){ // Read all output register
+			LOG_E("mpu_read_sensor(): failed to read 14 bytes from reg ACCEL_XOUT_H (0x%02X)", MPU_REG_ACCEL_XOUT_H);
+			return false;
+		}
 
 		g_mpu->v.accel.raw.x = (gc_mpu[0]  << 8) | gc_mpu[1]; // Save raw accelerometer x axis
 		g_mpu->v.accel.raw.y = (gc_mpu[2]  << 8) | gc_mpu[3]; // Save raw accelerometer y axis
@@ -613,27 +636,46 @@ bool mpu_read_sensor(mpu_sensor_t sensor){
 		g_mpu->v.gyro.raw.y =  (gc_mpu[10] << 8) | gc_mpu[11]; // Save raw gyro y axis ;
 		g_mpu->v.gyro.raw.z =  (gc_mpu[12] << 8) | gc_mpu[13]; // Save raw gyro z axis ;
 
+		LOG_D("mpu_read_sensor(): accel: x=%d, y=%d, z=%d; temp=%d; gyro: x=%d, y=%d, z=%d;",
+				g_mpu->v.accel.raw.x, g_mpu->v.accel.raw.y, g_mpu->v.accel.raw.z,
+				g_mpu->v.temp.raw,
+				g_mpu->v.gyro.raw.x, g_mpu->v.gyro.raw.y, g_mpu->v.gyro.raw.z);
 	}else{
 		if(mask & MPU_ACCEL){ // Only accelerometer
-			if(!mpu_read_register(MPU_REG_ACCEL_XOUT_H, gc_mpu, 6, false)) return false; // Read accelerometer output register
+			if(!mpu_read_register(MPU_REG_ACCEL_XOUT_H, gc_mpu, 6, false)){ // Read accelerometer output register
+				LOG_E("mpu_read_sensor(): failed to read 6 bytes from reg ACCEL_XOUT_H (0x%02X)", MPU_REG_ACCEL_XOUT_H);
+				return false;
+			}
 
 			g_mpu->v.accel.raw.x = (gc_mpu[0]  << 8) | gc_mpu[1]; // Save raw accelerometer x axis
 			g_mpu->v.accel.raw.y = (gc_mpu[2]  << 8) | gc_mpu[3]; // Save raw accelerometer y axis
 			g_mpu->v.accel.raw.z = (gc_mpu[4]  << 8) | gc_mpu[5]; // Save raw accelerometer z axis
 
+			LOG_D("mpu_read_sensor(): accel: x=%d, y=%d, z=%d;",
+					g_mpu->v.accel.raw.x, g_mpu->v.accel.raw.y, g_mpu->v.accel.raw.z);
 		}
 		if(mask & MPU_TEMP){ // Only temperatur
-			if(!mpu_read_register(MPU_REG_TEMP_OUT_H, gc_mpu, 2, false)) return false; // Reads temperatur output register
+			if(!mpu_read_register(MPU_REG_TEMP_OUT_H, gc_mpu, 2, false)){ // Reads temperatur output register
+				LOG_E("mpu_read_sensor(): failed to read 2 bytes from reg TEMP_OUT_H (0x%02X)", MPU_REG_TEMP_OUT_H);
+				return false;
+			}
 
 			g_mpu->v.temp.raw = (gc_mpu[0]  << 8) | gc_mpu[1]; // Save raw temperatur
 
+			LOG_D("mpu_read_sensor(): temp=%d;", g_mpu->v.temp.raw);
 		}
 		if(mask & MPU_GYRO){ // Only gyroscope
-			if(!mpu_read_register(MPU_REG_GYRO_XOUT_H, gc_mpu, 6, false)) return false; // Read gyro output register
+			if(!mpu_read_register(MPU_REG_GYRO_XOUT_H, gc_mpu, 6, false)){ // Read gyro output register
+				LOG_E("mpu_read_sensor(): failed to read 6 bytes from reg GYRO_XOUT_H (0x%02X)", MPU_REG_GYRO_XOUT_H);
+				return false;
+			}
 
 			g_mpu->v.gyro.raw.x = (gc_mpu[0]  << 8) | gc_mpu[1]; // Save raw gyro x axis
 			g_mpu->v.gyro.raw.y = (gc_mpu[2] << 8) | gc_mpu[3]; // Save raw gyro y axis
 			g_mpu->v.gyro.raw.z = (gc_mpu[4] << 8) | gc_mpu[5]; // Save raw gyro z axis
+
+			LOG_D("mpu_read_sensor(): gyro: x=%d, y=%d, z=%d;",
+					g_mpu->v.gyro.raw.x, g_mpu->v.gyro.raw.y, g_mpu->v.gyro.raw.z);
 		}
 	}
 
@@ -642,14 +684,23 @@ bool mpu_read_sensor(mpu_sensor_t sensor){
 			g_mpu->v.accel.g.x = (g_mpu->v.accel.raw.x - g_mpu->conf.offset_accel.x) / g_mpu->conf.fsr_div.accel; // Calculate raw x axis to G
 			g_mpu->v.accel.g.y = (g_mpu->v.accel.raw.y - g_mpu->conf.offset_accel.y) / g_mpu->conf.fsr_div.accel; // Calculate raw y axis to G
 			g_mpu->v.accel.g.z = (g_mpu->v.accel.raw.z - g_mpu->conf.offset_accel.z) / g_mpu->conf.fsr_div.accel; // Calculate raw z axis to G
+
+			LOG_D("mpu_read_sensor(): scaled accel: x=%0.3fg, y=%0.3fg, z=%0.3fg;",
+					g_mpu->v.accel.g.x, g_mpu->v.accel.g.y, g_mpu->v.accel.g.z);
 		}
-		if(mask & MPU_TEMP) // Raw -> °C
+		if(mask & MPU_TEMP){ // Raw -> °C
 			g_mpu->v.temp.celsius = (g_mpu->v.temp.raw / 340.0f) + 36.53f; // Calculate raw temperatur to °C
+
+			LOG_D("mpu_read_sensor(): scaled temp: %02.2f°C;", g_mpu->v.temp.celsius);
+		}
 
 		if(mask & MPU_GYRO){ // Raw -> °/s for gyroscope
 			g_mpu->v.gyro.dps.x = (g_mpu->v.gyro.raw.x - g_mpu->conf.offset_gyro.x) / g_mpu->conf.fsr_div.gyro; // Calculate raw x axis to °/s
 			g_mpu->v.gyro.dps.y = (g_mpu->v.gyro.raw.y - g_mpu->conf.offset_gyro.y) / g_mpu->conf.fsr_div.gyro; // Calculate raw y axis to °/s
 			g_mpu->v.gyro.dps.z = (g_mpu->v.gyro.raw.z - g_mpu->conf.offset_gyro.z) / g_mpu->conf.fsr_div.gyro; // Calculate raw z axis to °/s
+
+			LOG_D("mpu_read_sensor(): scaled gyro: x=%0.3f°/s, y=%0.3f°/s, z=%0.3f°/s;",
+					g_mpu->v.gyro.dps.x, g_mpu->v.gyro.dps.y, g_mpu->v.gyro.dps.z);
 		}
 	}
 
@@ -695,14 +746,22 @@ void mpu_irq_handler(uint gpio, uint32_t events){
  * 	- false = failed to write to the INT_PIN_CFG register
  */
 bool mpu_int_pin_cfg(mpu_int_pin_cfg_t cfg){
-	if(!mpu_read_register(MPU_REG_INT_PIN_CFG, gc_mpu, 1, true)) return false; // Reads the INT_PIN_CFG register and save it in gc_mpu
+	if(!mpu_read_register(MPU_REG_INT_PIN_CFG, gc_mpu, 1, true)){ // Reads the INT_PIN_CFG register and save it in gc_mpu
+			LOG_E("mpu_int_pin_cfg(): failed to read 1 byte from reg INT_PIN_CFG (0x%02X)", MPU_REG_INT_PIN_CFG);
+			return false;
+		}
 
 	gc_mpu[0] &= ~MPU_INT_PIN_CFG_ALL; // Unsets all interrupt bits
 	gc_mpu[0] |= cfg; // Set the bits given in `cfg`
 
-	if(!mpu_write_register((uint8_t[]){MPU_REG_INT_PIN_CFG, gc_mpu[0]}, 2, false)) return false; // Write back to registers
+	if(!mpu_write_register((uint8_t[]){MPU_REG_INT_PIN_CFG, gc_mpu[0]}, 2, false)){ // Write back to registers
+		LOG_E("mpu_int_pin_cfg(): failed to write 0x%02X to reg INT_PIN_CFG (0x%02X)", gc_mpu[0], MPU_REG_INT_PIN_CFG);
+		return false;
+	}
 
 	sleep_ms(2); // Little activation pause
+
+	LOG_I("mpu_int_pin_cfg(): interrupt pin configured. written 0x%02X to reg INT_PIN_CFG (0x%02X)", cfg, MPU_REG_INT_PIN_CFG);
 
 	return true; // If everything goes right
 }
@@ -734,11 +793,18 @@ bool mpu_int_motion_cfg(uint8_t ms, uint16_t mg){
 	else if(mg > 8160) mg = 255; // or to big and set to min/max
 	else               mg /= 32; // else divide by 32 for the mpu
 
-	if(!mpu_ahpf(MPU_AHPF_5HZ)) return false; // Set the accel high pass filter to 5Hz
-
-	if(!mpu_write_register((uint8_t[]){MPU_REG_MOT_THR, mg, ms}, 3, false)) return false; // Write the motion threashold to the given arguments
+	if(!mpu_ahpf(MPU_AHPF_5HZ)){ // Set the accel high pass filter to 5Hz
+		LOG_E("mpu_int_motion_cfg(): failed to set ahpf to 5Hz");
+		return false;
+	}
+	if(!mpu_write_register((uint8_t[]){MPU_REG_MOT_THR, mg, ms}, 3, false)){ // Write the motion threashold to the given arguments
+		LOG_E("mpu_int_motion_cfg(): failed to write 0x%02X, 0x%02X to reg MOT_THR (0x%02X)", mg, ms, MPU_REG_MOT_THR);
+		return false;
+	}
 
 	sleep_ms(2); // Little activation pause
+
+	LOG_I("mpu_int_motion_cfg(): motion int configured. written 0x%02X, 0x%02X to reg MOT_THR (0x%02X)", mg, ms, MPU_REG_MOT_THR);
 
 	return true; // If everything is ok
 }
@@ -761,15 +827,24 @@ bool mpu_int_motion_cfg(uint8_t ms, uint16_t mg){
  */
 bool mpu_int_enable(mpu_int_enable_t interrupt){
 	gpio_set_irq_enabled_with_callback(MPU_INT_PIN, GPIO_IRQ_EDGE_RISE, true, &mpu_irq_handler); // Listen MPU_INT_PIN call `mpu_irq_handler` if pin HIGH
+	LOG_I("mpu_int_enable(): set IRQ with rising edge on GPIO%d", MPU_INT_PIN);
 
-	if(!mpu_read_register(MPU_REG_INT_ENABLE, gc_mpu, 1, true)) return false; // Read the INT_ENABLE register
+	if(!mpu_read_register(MPU_REG_INT_ENABLE, gc_mpu, 1, true)){ // Read the INT_ENABLE register
+			LOG_E("mpu_int_enable(): failed to read 1 byte from reg INT_ENABLE (0x%02X)", MPU_REG_INT_ENABLE);
+			return false;
+		}
 
 	gc_mpu[0] &= ~MPU_INT_ENABLE_ALL; // Unsets all interrupt bits
 	gc_mpu[0] |= interrupt; // Sets with the bitmask given by argument
 
-	if(!mpu_write_register((uint8_t[]){MPU_REG_INT_ENABLE, gc_mpu[0]}, 2, false)) return false; // Write back to registers
+	if(!mpu_write_register((uint8_t[]){MPU_REG_INT_ENABLE, gc_mpu[0]}, 2, false)){ // Write back to registers
+		LOG_E("mpu_int_enable(): failed to write 0x%02X to reg INT_ENABLE (0x%02X)", gc_mpu[0], MPU_REG_INT_ENABLE);
+		return false;
+	}
 
 	sleep_ms(2); // Little activation pause
+	
+	LOG_I("mpu_int_enable(): interrupt activated");
 
 	return true; // When nothing goes wrong
 }
@@ -791,7 +866,12 @@ bool mpu_int_status(void){
 	if(!g_mpu_int_flag) return false; // Checks if an interrupt occurred at MPU_INT_PIN
 	else g_mpu_int_flag = false; // When an interrupt has occurred set the flag false
 
-	if(!mpu_read_register(MPU_REG_INT_STATUS, gc_mpu, 1, false)) return false; // Read INT_STATUS register save output in gc_mpu else return false
+	if(!mpu_read_register(MPU_REG_INT_STATUS, gc_mpu, 1, false)){ // Read INT_STATUS register save output in gc_mpu else return false
+			LOG_E("mpu_int_status(): failed to read 1 byte from reg INT_STATUS (0x%02X)", MPU_REG_INT_STATUS);
+			return false;
+		}
+
+	LOG_D("mpu_int_status(): interrupt = "ANSI_BOLD ANSI_GREEN"true"ANSI_RESET);
 
 	if((gc_mpu[0] & MPU_DATA_RDY_INT) || // Check data ready interrupt
 	   (gc_mpu[0] & MPU_I2C_MST_INT)  || // Check I²C master interrupt
