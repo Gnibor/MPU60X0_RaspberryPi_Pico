@@ -45,13 +45,30 @@
 // ========================
 // === Global Variables ===
 // ========================
-static mpu_cache_t gc_mpu[14] = {0};
-static mpu_s *g_mpu = NULL; // Global pointer to the aktiv MPU-Device
-static int g_mpu_ret_cache = 0; // Temporary buffer for return values
+/** @brief Internal I2C data cache for burst reads and register manipulations. */
+static uint8_t gc_mpu[14] = {0};
 
-// ==========================
-// === Initialize MPU ===
-// ==========================
+/** @brief Active device pointer used by all standalone functions. 
+ *  Set via @ref mpu_init or @ref mpu_use_struct. */
+static mpu_s *g_mpu = NULL;
+
+/** @brief Cache for the last I2C operation return value (byte count or error). */
+static int g_mpu_ret_cache = 0;
+
+
+/**
+ * @brief Initializes the MPU device struct and the Raspberry Pi Pico I2C hardware.
+ * 
+ * Sets up I2C at 400kHz, configures GPIO pins (SDA, SCL, and optional INT), 
+ * performs a @ref mpu_who_am_i check, and wakes the device from its default sleep state.
+ * 
+ * @param i2c_port Pointer to the Pico I2C instance (e.g., i2c0 or i2c1).
+ * @param addr     I2C slave address from @ref mpu_addr_t.
+ * 
+ * @return mpu_s   A populated device structure. 
+ * @note This function automatically sets @ref g_mpu to the newly created instance.
+ * @warning Ensure @ref MPU_SDA_PIN and @ref MPU_SCL_PIN are defined in your config.
+ */
 mpu_s mpu_init(i2c_inst_t *i2c_port, mpu_addr_t addr){
 	mpu_s mpu; // Initalize device struct and function pointers
 	memset(&mpu, 0, sizeof(mpu));
@@ -106,10 +123,16 @@ mpu_s mpu_init(i2c_inst_t *i2c_port, mpu_addr_t addr){
 	return mpu;
 }
 
-// =========================
-// === Set device to use ===
-// =========================
-// to set device as used device for the functions who need the struct
+/**
+ * @brief Sets a specific MPU instance as the active device for all subsequent calls.
+ * 
+ * Since many functions in this library do not take a struct pointer as an argument, 
+ * this function updates the global @ref g_mpu pointer to the desired device.
+ * 
+ * @param device Pointer to an existing @ref mpu_s instance.
+ * @return true  If the pointer was set successfully.
+ * @return false If the provided pointer was NULL.
+ */
 bool mpu_use_struct(mpu_s *device){
 	if (device == NULL){
 		LOG_E("mpu_use_struct(): device = NULL");
@@ -121,9 +144,16 @@ bool mpu_use_struct(mpu_s *device){
 	return true;
 }
 
-// ==========================
-// === I²C Register Write ===
-// ==========================
+/**
+ * @brief Performs a raw I2C write operation to the MPU.
+ * 
+ * @param data     Pointer to the data array (First byte must be the register address).
+ * @param how_many Number of bytes to write (including the register address).
+ * @param block    If true, the function will block until transmission is complete.
+ * 
+ * @return true  If the number of bytes written matches @p how_many.
+ * @return false If @ref g_mpu is not set or I2C communication failed.
+ */
 bool mpu_write_register(uint8_t *data, uint8_t how_many, bool block){
 	if(!g_mpu){
 		return false;
@@ -141,9 +171,20 @@ bool mpu_write_register(uint8_t *data, uint8_t how_many, bool block){
 	return true;
 }
 
-// =========================
-// === I2C Register Read ===
-// =========================
+/**
+ * @brief Performs a raw I2C read operation from a specific MPU register.
+ * 
+ * This function first writes the register address and then reads the requested 
+ * number of bytes back into the provided buffer.
+ * 
+ * @param reg      The starting register address to read from.
+ * @param out      Pointer to the buffer where the read data will be stored.
+ * @param how_many Number of bytes to read.
+ * @param block    If true, uses blocking I2C calls.
+ * 
+ * @return true  If the number of bytes read matches @p how_many.
+ * @return false If @ref g_mpu is not set, or I2C communication failed.
+ */
 bool mpu_read_register(uint8_t reg, uint8_t *out, uint8_t how_many, bool block){
 	if(!g_mpu){
 		return false;
@@ -165,9 +206,14 @@ bool mpu_read_register(uint8_t reg, uint8_t *out, uint8_t how_many, bool block){
 	}
 }
 
-// =======================
-// === Test Connection ===
-// =======================
+/**
+ * @brief Validates the connection by reading the MPU's unique ID.
+ * 
+ * Checks the @c WHO_AM_I register against the expected @ref MPU_WHO_AM_I value.
+ * 
+ * @return true  If the device responded and the ID is correct (0x68).
+ * @return false If communication failed or the device ID is unknown.
+ */
 bool mpu_who_am_i(void){
 	if(!mpu_read_register(MPU_REG_WHO_AM_I, gc_mpu, 1, false)){
 		LOG_E("mpu_who_am_i(): failed exec mpu_read_register()");
@@ -183,11 +229,24 @@ bool mpu_who_am_i(void){
 	}
 }
 
-/*
- * Perform resets
- *
- * @param reset Bitmask defining which components to reset.
- * @return true if all I2C operations succeeded.
+/**
+ * @brief Performs a software reset on specific internal components or the entire device.
+ * 
+ * This function handles both partial resets of signal paths (Accel, Gyro, Temp) 
+ * and full device reboots. It modifies @c SIGNAL_PATH_RESET, @c USER_CTRL, 
+ * and @c PWR_MGMT_1 depending on the provided bitmask.
+ * 
+ * @param reset Bitmask defining which components to reset using @ref mpu_reset_t.
+ *              Use @ref MPU_RESET_ALL for a full hardware-level reboot.
+ * 
+ * @return true  If all I2C read/write operations and timing sequences succeeded.
+ * @return false If @ref g_mpu is NULL or any I2C transaction failed.
+ * 
+ * @note A full reset (@ref MPU_RESET_ALL) triggers a @c DEVICE_RESET and 
+ *       includes mandatory delays (up to 550ms) to allow the analog sensors 
+ *       and digital logic to stabilize.
+ * @warning Performing a full reset will revert all sensor configurations 
+ *          (FSR, DLPF, etc.) to their power-on default states.
  */
 bool mpu_reset(mpu_reset_t reset) {
 	// 1. Read current register values into global cache to preserve existing bits
@@ -246,9 +305,13 @@ bool mpu_reset(mpu_reset_t reset) {
 	return true;
 }
 
-// ==================
-// === Sleep Mode ===
-// ==================
+/**
+ * @brief Controls the sleep states of the device and the temperature sensor.
+ * 
+ * @param sleep Combination of @ref mpu_sleep_t flags to enable/disable components.
+ * @return true if communication succeeded, false otherwise.
+ * @note This function manages bits in the @c PWR_MGMT_1 register.
+ */
 bool mpu_sleep(mpu_sleep_t sleep){
 	if(!mpu_read_register(MPU_REG_PWR_MGMT_1, gc_mpu, 1, true)){
 		LOG_E("mpu_sleep(): failed to read reg PWR_MGMT_1 (0x%02X)", MPU_REG_PWR_MGMT_1);
@@ -285,9 +348,12 @@ bool mpu_sleep(mpu_sleep_t sleep){
 	return true;
 }
 
-// =====================
-// === Stand-By Mode ===
-// =====================
+/**
+ * @brief Places specific sensor axes into standby mode to save power.
+ * 
+ * @param stby Bitmask of axes from @ref mpu_stby_t to put into standby.
+ * @return true if @c PWR_MGMT_2 was updated successfully.
+ */
 bool mpu_stby(mpu_stby_t stby){
 	if(!mpu_read_register(MPU_REG_PWR_MGMT_2, gc_mpu, 1, true)){
 		LOG_E("mpu_stby(): failed to read reg PWR_MGMT_2 (0x%02X)", MPU_REG_PWR_MGMT_2);
@@ -309,6 +375,13 @@ bool mpu_stby(mpu_stby_t stby){
 	return true;
 }
 
+/**
+ * @brief Selects the clock source for the MPU.
+ * 
+ * @param clksel Clock source from @ref mpu_clk_sel_t. 
+ *               Using a Gyro PLL is recommended for better stability.
+ * @return true if clock source was updated.
+ */
 bool mpu_clk_sel(mpu_clk_sel_t clksel){
 	if(!mpu_read_register(MPU_REG_PWR_MGMT_1, gc_mpu, 1, true)){
 		LOG_E("mpu_clk_sel(): failed to read reg PWR_MGMT_1 (0x%02X)", MPU_REG_PWR_MGMT_1);
@@ -330,9 +403,15 @@ bool mpu_clk_sel(mpu_clk_sel_t clksel){
 	return true;
 }
 
-// ==========================
-// === DLPF configuration ===
-// ==========================
+/**
+ * @brief Configures the Digital Low Pass Filter (DLPF).
+ * 
+ * The DLPF filters high-frequency noise from both accelerometer and gyroscope.
+ * Lower frequencies result in cleaner data but higher latency.
+ * 
+ * @param cfg Filter setting from @ref mpu_dlpf_cfg_t.
+ * @return true if @c CONFIG register was updated.
+ */
 bool mpu_dlpf_cfg(mpu_dlpf_cfg_t cfg){
 	if(!mpu_read_register(MPU_REG_CONFIG, gc_mpu, 1, true)){
 		LOG_E("mpu_dlpf_cfg(): failed to read reg CONFIG (0x%02X)", MPU_REG_CONFIG);
@@ -354,9 +433,15 @@ bool mpu_dlpf_cfg(mpu_dlpf_cfg_t cfg){
 	return true;
 }
 
-// =======================
-// === Set Sample Rate ===
-// =======================
+/**
+ * @brief Sets the Sample Rate Divider.
+ * 
+ * The sample rate is determined by: Sample Rate = Internal_Sample_Rate / (1 + smplrt_div).
+ * 
+ * @param smplrt_div Divider value (0-255).
+ * @return true if @c SMPLRT_DIV register was updated.
+ * @note The @c Internal_Sample_Rate is 1kHz unless DLPF is disabled (8kHz).
+ */
 bool mpu_smplrt_div(mpu_smplrt_div_t smplrt_div){
 	gc_mpu[0] = MPU_REG_SMPLRT_DIV;
 	gc_mpu[1] = smplrt_div;
@@ -373,9 +458,20 @@ bool mpu_smplrt_div(mpu_smplrt_div_t smplrt_div){
 	return true;
 }
 
-// ==============================
-// === Accel High Pass Filter ===
-// ==============================
+/**
+ * @brief Configures the Accelerometer High Pass Filter.
+ * 
+ * Sets the cutoff frequency for the internal digital high pass filter. 
+ * This is used to eliminate constant acceleration (gravity) from the 
+ * motion detection logic.
+ * 
+ * @param ahpf The desired filter setting from @ref mpu_ahpf_t.
+ * @return true  If the configuration was written successfully.
+ * @return false If I2C communication failed.
+ * 
+ * @note After setting the filter, a 5ms delay is included to let the 
+ *       filter coefficients stabilize.
+ */
 bool mpu_ahpf(mpu_ahpf_t ahpf){
 	if(!mpu_read_register(MPU_REG_ACCEL_CONFIG, gc_mpu, 1, true)){
 		LOG_E("mpu_ahpf(): failed to read reg ACCEL_CONFIG (0x%02X)", MPU_REG_ACCEL_CONFIG);
@@ -398,21 +494,20 @@ bool mpu_ahpf(mpu_ahpf_t ahpf){
 	return true;
 }
 
-// ==================
-// === Cycle Mode ===
-// ==================
-/*
- * Set the MPU-6050 cycle mode.
- *
- * Parameters:
- *  - mode:         Select normal cycle mode, low-power cycle mode, or disable cycle.
- *  - smplrt_wake:  Determines the wake-up frequency.
- *                  * For low-power cycle mode, use the predefined mpu_lp_wake_t enum
- *                    for common frequencies (e.g., 1.25Hz, 5Hz, 10Hz, 20Hz, 40Hz).
- *
- * Notes:
- *  - In low-power mode, all gyroscope axes are automatically put into standby.
- *  - The function updates both PWR_MGMT_1 and PWR_MGMT_2 registers in a single I2C transaction.
+/**
+ * @brief Sets the MPU-6050 cycle mode for low-power operation.
+ * 
+ * In cycle mode, the device sleeps and wakes up at a specific rate to take a 
+ * single accelerometer sample. Gyroscope axes are disabled to save energy.
+ * 
+ * @param mode         Selects @ref MPU_CYCLE_ON, @ref MPU_CYCLE_LP, or @ref MPU_CYCLE_OFF.
+ * @param wake_up_rate Frequency of the wake-up cycle (use @ref mpu_lp_wake_t).
+ * 
+ * @return true  If the power management registers were updated successfully.
+ * @return false If I2C communication failed.
+ * 
+ * @note Low-power cycle mode (@ref MPU_CYCLE_LP) also disables the temperature 
+ *       sensor and puts all gyroscope axes into standby.
  */
 bool mpu_cycle_mode(mpu_cycle_t mode, mpu_lp_wake_t wake_up_rate){
 	// Read current power management registers (PWR_MGMT_1 and PWR_MGMT_2)
@@ -457,10 +552,22 @@ bool mpu_cycle_mode(mpu_cycle_t mode, mpu_lp_wake_t wake_up_rate){
 	return true;
 }
 
-// ===================================
-// ===  Set Full-Scale Range (FSR) ===
-// === & Calculate Scaling Factors ===
-// ===================================
+/**
+ * @brief Sets the Full-Scale Range (FSR) for Gyro and Accel and updates scaling factors.
+ * 
+ * This function configures the sensitivity of the sensors and automatically 
+ * calculates the required divisors for converting raw data into G-force and 
+ * Degrees-per-Second.
+ * 
+ * @param fsr  The gyroscope range (use @ref mpu_fsr_t, e.g., @ref MPU_FSR_2000DPS).
+ * @param afsr The accelerometer range (use @ref mpu_afsr_t, e.g., @ref MPU_AFSR_16G).
+ * 
+ * @return true  If the configuration registers were written successfully.
+ * @return false If I2C communication failed.
+ * 
+ * @note The calculated divisors are stored in @c g_mpu->conf.fsr_div and 
+ *       applied during @ref mpu_read_sensor() when @ref MPU_SCALED is requested.
+ */
 bool mpu_fsr(mpu_fsr_t fsr, mpu_afsr_t afsr){
 	// Read FSR Register
 	if(!mpu_read_register(MPU_REG_GYRO_CONFIG, gc_mpu, 2, true)){
@@ -498,25 +605,24 @@ bool mpu_fsr(mpu_fsr_t fsr, mpu_afsr_t afsr){
 	return true;
 }
 
-// ====================================================
-// ======= Calibrate Accelerometer or Gyroscope =======
-// ========== (determine zero-point offset) ===========
-// ====================================================
-// * Calibrate the accelerometer or gyroscope.        *
-// * Use the `mpu_sensor_t` for setting wich sensor   *
-// * should get calibrated. Use for the Accelerometer *
-// * the in `mpu_sensor_t` given axis type or your    *
-// * accelerometer will get complietly 0.             *
-// * Offset will get saved in the device struct.      *
-// ====================================================
-/*
- * @parameter:
- * 	- sensor = mpu_sensor_t sets wich sensor(s)
- * 	- samples = how many samples it should make
- *
- * @return:
- * 	- true = everything is ok
- * 	- false = struct not set to use or failed to read the sensor
+/**
+ * @brief Calibrates the sensors to determine zero-point offsets.
+ * 
+ * Averaging multiple samples, this function calculates the static bias of 
+ * the sensors. The resulting offsets are stored in the global @ref g_mpu struct 
+ * and used automatically during @ref mpu_read_sensor() if @ref MPU_SCALED is set.
+ * 
+ * @param sensor  Bitmask of sensors to calibrate. 
+ *                For @ref MPU_ACCEL, you MUST provide an axis modifier 
+ *                (e.g., @ref MPU_ACCEL_Z) to account for earth's gravity.
+ * @param samples Number of measurements to average (e.g., 100).
+ * 
+ * @return true  If calibration was successful.
+ * @return false If @ref g_mpu is NULL or I2C communication failed.
+ * 
+ * @note For the accelerometer, the function subtracts 16384 LSB (1g) from 
+ *       the axis pointing "up" to ensure the offset represents true 0g.
+ * @warning Ensure the device is perfectly still during calibration!
  */
 bool mpu_calibrate(mpu_sensor_t sensor, uint8_t samples){
 	if(!g_mpu){
@@ -596,21 +702,23 @@ bool mpu_calibrate(mpu_sensor_t sensor, uint8_t samples){
 	return true; // If everything goes right
 }
 
-// ============================================
-// === Read Sensor Data + Optional Scaling ====
-// ============================================
-// * Reads all sensors or only optional       *
-// * scaling based on the given argument.     *
-// ============================================
-/* @parameter:
- *	- sensor = Takes sensors given as `mpu_sensor_t`
- *
- * @return:
- *	- true = could read (and Calculate) the given `sensors`
- *	- false = failed to read or calculate the given `sensors`
- *
- * @notes:
- *	- If two sensors are given all three will be read (less I²C overhead), but only the given will be scaled (if given).
+/**
+ * @brief Reads sensor data and optionally calculates scaled values.
+ * 
+ * This function handles both single sensor reads and optimized burst reads.
+ * If more than one sensor type is requested in the mask, it performs a single 
+ * 14-byte I2C transaction to reduce overhead.
+ * 
+ * @param sensor Bitmask of sensors to read and/or scale (use @ref mpu_sensor_t).
+ *               Example: (MPU_ACCEL | MPU_GYRO | MPU_SCALED)
+ * 
+ * @return true  If I2C read and optional scaling were successful.
+ * @return false If @ref g_mpu is NULL or an I2C communication error occurred.
+ * 
+ * @note If @ref MPU_SCALED is set, the function uses the offsets and FSR 
+ *       divisors stored in the global configuration struct.
+ * @note FSYNC state is automatically extracted from the Temperature LSB 
+ *       during burst or temperature reads.
  */
 bool mpu_read_sensor(mpu_sensor_t sensor){
 	if(!g_mpu){
@@ -708,19 +816,17 @@ bool mpu_read_sensor(mpu_sensor_t sensor){
 }
 
 #if MPU_INT_PIN // Checks if MPU_INT_PIN is greater than 0
-volatile bool g_mpu_int_flag; // True if an interrupt occurred, else false
+/** @brief Global flag indicating an MPU interrupt has occurred. Hardware-level volatile. */
+volatile bool g_mpu_int_flag;
 
-// ======================================
-// ========= Interrupt Handler ==========
-// ======================================
-// * Gets called if the MPU_INT_PIN 
-// * goes high. Sets `g_mpu_int_flag`
-// * true if high.
-// ======================================
-/*
- * @parameter:
- * 	- gpio = the pin who got the interrupt
- * 	- events = the called interrupt event
+/**
+ * @brief Low-level IRQ handler for the Raspberry Pi Pico GPIO.
+ * 
+ * This function is registered as a callback. It checks if the triggering 
+ * pin is @ref MPU_INT_PIN and sets the global @ref g_mpu_int_flag.
+ * 
+ * @param gpio   The GPIO pin number that triggered the interrupt.
+ * @param events The bitmask of event types (e.g., EDGE_RISE).
  */
 void mpu_irq_handler(uint gpio, uint32_t events){
     if(gpio == MPU_INT_PIN){   // Checks if the called pin is MPU_INT_PIN
@@ -728,22 +834,12 @@ void mpu_irq_handler(uint gpio, uint32_t events){
     }
 }
 
-// ==========================================
-// ====== Interrupt Pin configuration =======
-// ==========================================
-// * Configure what the inerrupt pin of the *
-// * MPU schould do.                        *
-// * The function takes the bitmask given   *
-// * as `cfg` and writes it to the          *
-// * INT_PIN_CFG register.                  *
-// ==========================================
-/*
- * @parameter:
- * 	- cfg = bitmask for the INT_PIN_CFG register
- *
- * @return:
- * 	- true = everything is ok
- * 	- false = failed to write to the INT_PIN_CFG register
+/**
+ * @brief Configures the physical behavior of the MPU's interrupt and FSYNC pins.
+ * 
+ * @param cfg Bitmask of configuration flags using @ref mpu_int_pin_cfg_t.
+ * @return true  If the configuration was written successfully.
+ * @return false If I2C communication failed.
  */
 bool mpu_int_pin_cfg(mpu_int_pin_cfg_t cfg){
 	if(!mpu_read_register(MPU_REG_INT_PIN_CFG, gc_mpu, 1, true)){ // Reads the INT_PIN_CFG register and save it in gc_mpu
@@ -766,24 +862,21 @@ bool mpu_int_pin_cfg(mpu_int_pin_cfg_t cfg){
 	return true; // If everything goes right
 }
 
-// =============================================
-// ====== Motion Interrupt configuration =======
-// =============================================
-// * Prepare for motion interrupts.            *
-// * The function takes how many milli seconds *
-// * the sensor has to move and with how much  *
-// * milli gram of force it has to move.       *
-// * And writes the info in the INT_MOTION_CFG *
-// * register.                                 *
-// =============================================
-/*
- * @parameter:
- * 	- ms = milli sedonds to move 1-255
- * 	- mg = milli gram of force 1-255 * 32
- *
- * @return:
- * 	- true = everything ok could write cfg
- * 	- false = error failed to write cfg
+/**
+ * @brief Configures the motion detection interrupt thresholds.
+ * 
+ * This function sets the acceleration threshold (mg) and the required 
+ * duration (ms) for a motion event to trigger an interrupt.
+ * 
+ * @param ms Duration in milliseconds (1-255). Values are clamped to range.
+ * @param mg Acceleration threshold in milli-g (32-8160). 
+ *           Input is divided by 32 to fit MPU's 1-LSB = 32mg scale.
+ * 
+ * @return true  If high-pass filter and thresholds were set correctly.
+ * @return false If I2C communication failed.
+ * 
+ * @note Automatically enables the Accel High Pass Filter (AHPF) at 5Hz 
+ *       to filter out constant gravity and detect only movement.
  */
 bool mpu_int_motion_cfg(uint8_t ms, uint16_t mg){
 	if(ms < 1)         ms = 1;   // Check if argument `ms` are to small
@@ -809,21 +902,22 @@ bool mpu_int_motion_cfg(uint8_t ms, uint16_t mg){
 	return true; // If everything is ok
 }
 
-// ==============================================================
-// ==================== Interrupt pin enable ====================
-// ==============================================================
-// * Set the interrupt handler callback to `mpu_irq_handler`.   *
-// * Reads the INT_ENABLE register, unsets the bits for         *
-// * the interrupts then sets bit in the INT_ENABLE register,   *
-// * with the bitmask given as the argument `interrupt`.        *
-// ==============================================================
-/*
- * @parameter:
- * 	- interrupt = takes a bitmask for the INT_STATUS register
- *
- * @return:
- * 	- true = when it could write to the INT_STATUS register
- * 	- false = if anything goes wrong
+/**
+ * @brief Configures and enables specific interrupt sources on the MPU.
+ * 
+ * This function sets up the Pico's GPIO hardware to listen for the MPU's 
+ * interrupt signal and simultaneously configures the MPU's internal 
+ * @c INT_ENABLE register.
+ * 
+ * @param interrupt Bitmask of interrupts to enable (use @ref mpu_int_enable_t).
+ *                  Common values: @ref MPU_DATA_RDY_EN, @ref MPU_INT_MOTION_EN.
+ * 
+ * @return true  If the interrupt handler was attached and I2C write succeeded.
+ * @return false If I2C communication failed.
+ * 
+ * @warning This function overwrites previous interrupt settings in the 
+ *          @c INT_ENABLE register but keeps the state of non-mapped bits.
+ * @note    Includes a 2ms sleep to allow the interrupt logic to stabilize.
  */
 bool mpu_int_enable(mpu_int_enable_t interrupt){
 	gpio_set_irq_enabled_with_callback(MPU_INT_PIN, GPIO_IRQ_EDGE_RISE, true, &mpu_irq_handler); // Listen MPU_INT_PIN call `mpu_irq_handler` if pin HIGH
@@ -849,18 +943,16 @@ bool mpu_int_enable(mpu_int_enable_t interrupt){
 	return true; // When nothing goes wrong
 }
 
-// ================================================
-// ============ Read interrupt status =============
-// ================================================
-// * If a interrupt at MPU_INT_PIN is detected,   *
-// * this function reads the interrupt status     *
-// * register and returns true when any interrupt *
-// * bit is 1 other wise false.                   *
-// ================================================
-/*
- * @return:
- * 	- true = an interrupt has occurred
- * 	- false = no interrupt
+/**
+ * @brief Checks and clears the internal interrupt status of the MPU.
+ * 
+ * First checks the local @ref g_mpu_int_flag. If true, it performs an I2C 
+ * read of the @c INT_STATUS register to determine the exact source.
+ * 
+ * @return true  If any enabled interrupt (Data Ready, Motion, FIFO, etc.) is active.
+ * @return false If no interrupt occurred or I2C read failed.
+ * 
+ * @note Resets @ref g_mpu_int_flag to false upon being called.
  */
 bool mpu_int_status(void){
 	if(!g_mpu_int_flag) return false; // Checks if an interrupt occurred at MPU_INT_PIN
@@ -869,7 +961,7 @@ bool mpu_int_status(void){
 	if(!mpu_read_register(MPU_REG_INT_STATUS, gc_mpu, 1, false)){ // Read INT_STATUS register save output in gc_mpu else return false
 			LOG_E("mpu_int_status(): failed to read 1 byte from reg INT_STATUS (0x%02X)", MPU_REG_INT_STATUS);
 			return false;
-		}
+	}
 
 	LOG_D("mpu_int_status(): interrupt = "ANSI_BOLD ANSI_GREEN"true"ANSI_RESET);
 

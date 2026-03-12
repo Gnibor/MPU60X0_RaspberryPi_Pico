@@ -70,60 +70,62 @@
 #define MPU_INT_PULLUP 1 // 1 = enable internal pull-up, 0 = disabled
 #endif
 
-/*
- * Identifiers for selecting specific sensor blocks
- * Used in mpu_read_sensor(), mpu_calibrate()
+/**
+ * @brief Sensors and modifiers for read and calibration operations.
+ * 
+ * Use @ref MPU_ACCEL, @ref MPU_GYRO or @ref MPU_TEMP to select sensors.
+ * For @ref mpu_calibrate(), you must also specify which accelerometer axis 
+ * is pointing "up" (against gravity) using the axis modifiers.
  */
 typedef enum{
-	MPU_ACCEL   =  (1 << 0), // 0b00000001 0x01
-	MPU_ACCEL_X = ((1 << 4) | MPU_ACCEL), // 0b00010001 0x11
-	MPU_ACCEL_Y = ((1 << 5) | MPU_ACCEL), // 0b00100001 0x21
-	MPU_ACCEL_Z = ((1 << 6) | MPU_ACCEL), // 0b01000001 0x41
-	MPU_TEMP    =  (1 << 1), // 0b00000010 0x02
-	MPU_GYRO    =  (1 << 2), // 0b00000100 0x04
-	MPU_GYRO_X  = ((1 << 4) | (1 << 7) | MPU_GYRO), // 0b10010100 0x94
-	MPU_GYRO_Y  = ((1 << 5) | (1 << 7) | MPU_GYRO), // 0b10100100 0xA4
-	MPU_GYRO_Z  = ((1 << 6) | (1 << 7) | MPU_GYRO), // 0b11000100 0xC4
-	MPU_SCALED  =  (1 << 3), // 0b00001000 0x08
-	MPU_ALL     = (MPU_ACCEL | MPU_TEMP | MPU_GYRO) // 0b00000111 0x07
+	MPU_ACCEL   =  (1 << 0), /**< Accelerometer sensor flag. 0b00000001 0x01 */
+	MPU_TEMP    =  (1 << 1), /**< Temperature sensor flag. 0b00000010 0x02 */
+	MPU_GYRO    =  (1 << 2), /**< Gyroscope sensor flag. 0b00000100 0x04 */
+	MPU_SCALED  =  (1 << 3), /**< Modifier: Apply scaling/offsets to raw values. 0b00001000 0x08 */
+	/* Axis modifiers for calibration */
+	MPU_ACCEL_X = ((1 << 4) | MPU_ACCEL), /**< Calibrate Accel with X-axis against gravity. 0b00010001 0x11 */
+	MPU_ACCEL_Y = ((1 << 5) | MPU_ACCEL), /**< Calibrate Accel with Y-axis against gravity. 0b00100001 0x21 */
+	MPU_ACCEL_Z = ((1 << 6) | MPU_ACCEL), /**< Calibrate Accel with Z-axis against gravity. 0b01000001 0x41 */
+
+	MPU_GYRO_X  = ((1 << 4) | (1 << 7) | MPU_GYRO), /**< Internal gyro X mapping. 0b10010100 0x94 */
+	MPU_GYRO_Y  = ((1 << 5) | (1 << 7) | MPU_GYRO), /**< Internal gyro Y mapping. 0b10100100 0xA4 */
+	MPU_GYRO_Z  = ((1 << 6) | (1 << 7) | MPU_GYRO), /**< Internal gyro Z mapping. 0b11000100 0xC4 */
+
+	MPU_ALL     = (MPU_ACCEL | MPU_TEMP | MPU_GYRO) /**< All primary sensors. 0b00000111 0x07 */
 } mpu_sensor_t;
 
-/*
- * Identifiers for selecting differrent function options
- * Used in mpu_dlpf_cfg()
- */
-
-typedef enum{
-	MPU_CYCLE_LP  = 2,
-	MPU_CYCLE_ON  = 1,
-	MPU_CYCLE_OFF = 0
+/** @brief Power cycle modes for low power operation. */
+typedef enum {
+    MPU_CYCLE_LP  = 2, /**< Low Power Cycle mode. */
+    MPU_CYCLE_ON  = 1, /**< Cycle mode enabled. */
+    MPU_CYCLE_OFF = 0  /**< Cycle mode disabled (normal operation). */
 } mpu_cycle_t;
 
-/*
- * Used in mpu_sleep()
- */
-typedef enum{
-	MPU_SLEEP_DEVICE_ON	= (1 << 0),
-	MPU_SLEEP_DEVICE_OFF	= (0 << 0),
-	MPU_SLEEP_TEMP_ON	= (1 << 1),
-	MPU_SLEEP_TEMP_OFF	= (0 << 1),
-	MPU_SLEEP_ALL_OFF	=  0
+/** @brief Sleep and Temperature sensor configurations for PWR_MGMT_1. */
+typedef enum {
+    MPU_SLEEP_DEVICE_ON  = (1 << 0), /**< Device is awake. */
+    MPU_SLEEP_DEVICE_OFF = (0 << 0), /**< Device is in sleep mode. */
+    MPU_SLEEP_TEMP_ON    = (1 << 1), /**< Temperature sensor is enabled. */
+    MPU_SLEEP_TEMP_OFF   = (0 << 1), /**< Temperature sensor is disabled. */
+    MPU_SLEEP_ALL_OFF    = 0         /**< Turn off all sleep-related overrides. */
 } mpu_sleep_t;
 
-typedef enum{
-	MPU_ADDR_AD0_GND = 0x68, // Default I2C address for MPU-60X0 (AD0 pin -> Gnd)
-	MPU_ADDR_AD0_VCC = 0x69  // Default I2C address for MPU-60X0 (AD0 pin -> Vcc)
+/** @brief Possible I2C slave addresses depending on AD0 pin configuration. */
+typedef enum {
+    MPU_ADDR_AD0_GND = 0x68, /**< AD0 pin tied to Ground (default). */
+    MPU_ADDR_AD0_VCC = 0x69  /**< AD0 pin tied to VCC. */
 } mpu_addr_t;
 
-typedef enum{
-	MPU_RESET_ALL = (1 << 0),
-	MPU_RESET_TEMP = (1 << 1),
-	MPU_RESET_ACCEL = (1 << 2),
-	MPU_RESET_GYRO = (1 << 3),
-	MPU_RESET_SIG_COND = (1 << 4),
-	MPU_RESET_I2C_MST = (1 << 5),
-	MPU_RESET_FIFO = (1 << 6),
-	MPU_RESET_DEVICE = (1 << 7)
+/** @brief Bitmask for resetting specific internal registers or signal paths. */
+typedef enum {
+    MPU_RESET_ALL      = (1 << 0), /**< Reset all sensor registers and signal paths. */
+    MPU_RESET_TEMP     = (1 << 1), /**< Reset temperature sensor signal path. */
+    MPU_RESET_ACCEL    = (1 << 2), /**< Reset accelerometer signal path. */
+    MPU_RESET_GYRO     = (1 << 3), /**< Reset gyroscope signal path. */
+    MPU_RESET_SIG_COND = (1 << 4), /**< Reset all sensor signal conditioning. */
+    MPU_RESET_I2C_MST  = (1 << 5), /**< Reset I2C Master module. */
+    MPU_RESET_FIFO     = (1 << 6), /**< Reset FIFO buffer. */
+    MPU_RESET_DEVICE   = (1 << 7)  /**< Trigger full chip reset. */
 } mpu_reset_t;
 
 typedef uint8_t mpu_cache_t;
