@@ -49,7 +49,7 @@ int main(void){
 	if(mpu_fsr(MPU_FSR_250DPS, MPU_AFSR_2G)) printf("FSR=2000dps, AFSR=8g\n");
 	printf("Try to calibrate GY-521\n");
 	sleep_ms(2000);
-	if(mpu_calibrate((MPU_ACCEL_X | MPU_GYRO), 100)) printf("GY-521 gyro and accel is now calibrated.\n");
+	if(mpu_calibrate((MPU_ACCEL_X | MPU_GYRO), 10)) printf("GY-521 gyro and accel is now calibrated.\n");
 
 	//mpu_dlpf_cfg(MPU_DLPF_CFG_184HZ);
 

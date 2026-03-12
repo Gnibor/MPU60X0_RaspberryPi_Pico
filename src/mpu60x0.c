@@ -45,7 +45,7 @@
 // ========================
 // === Global Variables ===
 // ========================
-static mpu_cache_t g_mpu_cache[14] = {0};
+static mpu_cache_t gc_mpu[14] = {0};
 static mpu_s *g_mpu = NULL; // Global pointer to the aktiv MPU-Device
 static int g_mpu_ret_cache = 0; // Temporary buffer for return values
 
@@ -169,12 +169,12 @@ bool mpu_read_register(uint8_t reg, uint8_t *out, uint8_t how_many, bool block){
 // === Test Connection ===
 // =======================
 bool mpu_who_am_i(void){
-	if(!mpu_read_register(MPU_REG_WHO_AM_I, g_mpu_cache, 1, false)){
+	if(!mpu_read_register(MPU_REG_WHO_AM_I, gc_mpu, 1, false)){
 		LOG_E("mpu_who_am_i(): failed exec mpu_read_register()");
 		return false;
 	}
 
-	if(g_mpu_cache[0] == MPU_WHO_AM_I){
+	if(gc_mpu[0] == MPU_WHO_AM_I){
 		LOG_I("mpu_who_am_i(): device is a MPU60X0");
 		return true;
 	}else{
@@ -183,35 +183,63 @@ bool mpu_who_am_i(void){
 	}
 }
 
-// ======================
-// === Perform Resets ===
-// ======================
-bool mpu_reset(mpu_reset_t reset){
-	if(!mpu_read_register(MPU_REG_SIGNAL_PATH_RESET, (uint8_t[]){g_mpu_cache[1], g_mpu_cache[2], g_mpu_cache[3]}, 3, true)) return false;
+/*
+ * Perform resets
+ *
+ * @param reset Bitmask defining which components to reset.
+ * @return true if all I2C operations succeeded.
+ */
+bool mpu_reset(mpu_reset_t reset) {
+	// 1. Read current register values into global cache to preserve existing bits
+	// We read 3 bytes starting from SIGNAL_PATH_RESET (likely covering USER_CTRL & PWR_MGMT_1)
+	if (!mpu_read_register(MPU_REG_SIGNAL_PATH_RESET, (uint8_t[]){gc_mpu[1], gc_mpu[2], gc_mpu[3]}, 3, true)) {
+		LOG_E("mpu_reset(): Failed to read reg SIGNAL_PATH_RESET (0x%02X)", MPU_REG_SIGNAL_PATH_RESET);
+		return false;
+	}
 
-	if(reset & MPU_RESET_TEMP) g_mpu_cache[1] |= MPU_TEMP_RESET;
-	if(reset & MPU_RESET_ACCEL) g_mpu_cache[1] |= MPU_ACCEL_RESET;
-	if(reset & MPU_RESET_GYRO) g_mpu_cache[1] |= MPU_GYRO_RESET;
+	// 2. Modify SIGNAL_PATH_RESET bits (TEMP, ACCEL, GYRO)
+	if (reset & MPU_RESET_TEMP)  gc_mpu[1] |= MPU_TEMP_RESET;
+	if (reset & MPU_RESET_ACCEL) gc_mpu[1] |= MPU_ACCEL_RESET;
+	if (reset & MPU_RESET_GYRO)  gc_mpu[1] |= MPU_GYRO_RESET;
 
-	if(reset & MPU_RESET_SIG_COND) g_mpu_cache[2] |= MPU_SIG_COND_RESET;
-	if(reset & MPU_RESET_I2C_MST) g_mpu_cache[2] |= MPU_I2C_MST_RESET;
-	if(reset & MPU_RESET_FIFO) g_mpu_cache[2] |= MPU_FIFO_RESET;
+	// 3. Modify USER_CTRL bits (SIG_COND, I2C_MST, FIFO)
+	if (reset & MPU_RESET_SIG_COND) gc_mpu[2] |= MPU_SIG_COND_RESET;
+	if (reset & MPU_RESET_I2C_MST)  gc_mpu[2] |= MPU_I2C_MST_RESET;
+	if (reset & MPU_RESET_FIFO)     gc_mpu[2] |= MPU_FIFO_RESET;
 
-	if(reset & MPU_RESET_DEVICE) g_mpu_cache[3] |= MPU_DEVICE_RESET;
+	// 4. Modify PWR_MGMT_1 bits (DEVICE_RESET)
+	if (reset & MPU_RESET_DEVICE) gc_mpu[3] |= MPU_DEVICE_RESET;
 
-	if(reset & MPU_RESET_ALL){
-		g_mpu_cache[2] |= MPU_DEVICE_RESET;
-		if(!mpu_write_register((uint8_t[]){MPU_REG_PWR_MGMT_1, g_mpu_cache[3]}, 2, true)) return false;
-		sleep_ms(150);
-		g_mpu_cache[0] |= (MPU_TEMP_RESET | MPU_ACCEL_RESET | MPU_GYRO_RESET);
-		if(!mpu_write_register((uint8_t[]){MPU_REG_SIGNAL_PATH_RESET, g_mpu_cache[1]}, 2, true)) return false;
+	// 5. Execution Logic
+	if (reset & MPU_RESET_ALL) {
+		LOG_I("mpu_reset(): Starting FULL chip reset sequence...");
+
+		// Trigger Main Device Reset via PWR_MGMT_1
+		gc_mpu[2] |= MPU_DEVICE_RESET; // Warning: index logic should match your register mapping
+		if (!mpu_write_register((uint8_t[]){MPU_REG_PWR_MGMT_1, gc_mpu[3]}, 2, true)) return false;
+		sleep_ms(150); // Wait for internal reboot
+
+		// Reset Signal Paths (Analog/Digital Filters)
+		LOG_D("mpu_reset(): Clearing Signal Paths...");
+		gc_mpu[0] |= (MPU_TEMP_RESET | MPU_ACCEL_RESET | MPU_GYRO_RESET);
+		if (!mpu_write_register((uint8_t[]){MPU_REG_SIGNAL_PATH_RESET, gc_mpu[1]}, 2, true)) return false;
 		sleep_ms(200);
-		g_mpu_cache[1] |= (MPU_SIG_COND_RESET | MPU_I2C_MST_RESET | MPU_FIFO_RESET);
-		if(!mpu_write_register((uint8_t[]){MPU_REG_USER_CTRL, g_mpu_cache[2]}, 2, false)) return false;
+
+		// Reset User Control (FIFO, I2C Master, Logic)
+		LOG_D("mpu_reset(): Clearing User Control Logic...");
+		gc_mpu[1] |= (MPU_SIG_COND_RESET | MPU_I2C_MST_RESET | MPU_FIFO_RESET);
+		if (!mpu_write_register((uint8_t[]){MPU_REG_USER_CTRL, gc_mpu[2]}, 2, false)) return false;
 		sleep_ms(200);
-	}else{
-		g_mpu_cache[0] = MPU_REG_SIGNAL_PATH_RESET;
-		if(!mpu_write_register(g_mpu_cache, 4, false)) return false;
+
+		LOG_I("mpu_reset(): Full reset complete.");
+	} else {
+		// Partial reset of specific signal paths
+		LOG_I("mpu_reset(): Partial reset requested (Mask: 0x%02X)", reset);
+		gc_mpu[0] = MPU_REG_SIGNAL_PATH_RESET;
+		if (!mpu_write_register(gc_mpu, 4, false)) {
+			LOG_E("mpu_reset(): Write failed for partial reset");
+			return false;
+		}
 		sleep_ms(100);
 	}
 
@@ -222,19 +250,37 @@ bool mpu_reset(mpu_reset_t reset){
 // === Sleep Mode ===
 // ==================
 bool mpu_sleep(mpu_sleep_t sleep){
-	if(!mpu_read_register(MPU_REG_PWR_MGMT_1, g_mpu_cache, 1, true)) return false;
+	if(!mpu_read_register(MPU_REG_PWR_MGMT_1, gc_mpu, 1, true)){
+		LOG_E("mpu_sleep(): failed to read reg PWR_MGMT_1 (0x%02X)", MPU_REG_PWR_MGMT_1);
+		return false;
+	}
 
 	// Sleep Bit
-	if(sleep & MPU_SLEEP_DEVICE_ON) g_mpu_cache[0] |= MPU_SLEEP;
-	else if(!(sleep & (MPU_SLEEP_DEVICE_ON << 1))) g_mpu_cache[0] &= ~MPU_SLEEP;
+	if(sleep & MPU_SLEEP_DEVICE_ON){
+		gc_mpu[0] |= MPU_SLEEP;
+		LOG_I("mpu_sleep(): initiating device sleep sequence...");
+	}else if(!(sleep & (MPU_SLEEP_DEVICE_ON << 1))){
+		gc_mpu[0] &= ~MPU_SLEEP;
+		LOG_I("mpu_sleep(): initiating device wake up...");
+	}
 
 	// Temperature disable Bit
-	if(sleep & MPU_SLEEP_TEMP_ON) g_mpu_cache[0] |= MPU_TEMP_DIS;
-	else if(!(sleep & (MPU_SLEEP_TEMP_ON << 2))) g_mpu_cache[0] &= ~MPU_TEMP_DIS;
+	if(sleep & MPU_SLEEP_TEMP_ON){
+		gc_mpu[0] |= MPU_TEMP_DIS;
+		LOG_I("mpu_sleep(): initiating temp sleep sequence...");
+	}else if(!(sleep & (MPU_SLEEP_TEMP_ON << 2))){
+		gc_mpu[0] &= ~MPU_TEMP_DIS;
+		LOG_I("mpu_sleep(): initiating temp wake up...");
+	}
 
-	if(!mpu_write_register((uint8_t[]){MPU_REG_PWR_MGMT_1, g_mpu_cache[0]}, 2, false)) return false;
+	if(!mpu_write_register((uint8_t[]){MPU_REG_PWR_MGMT_1, gc_mpu[0]}, 2, false)){
+		LOG_E("mpu_sleep(): failed to write 0x%02X to reg PWR_MGMT_1 (0x%02X)", gc_mpu[0], MPU_REG_PWR_MGMT_1);
+		return false;
+	}
 
 	sleep_ms(5); // Activation pause
+
+	LOG_I("mpu_sleep(): initiation done");
 
 	return true;
 }
@@ -243,27 +289,43 @@ bool mpu_sleep(mpu_sleep_t sleep){
 // === Stand-By Mode ===
 // =====================
 bool mpu_stby(mpu_stby_t stby){
-	if(!mpu_read_register(MPU_REG_PWR_MGMT_2, g_mpu_cache, 1, true)) return false;
+	if(!mpu_read_register(MPU_REG_PWR_MGMT_2, gc_mpu, 1, true)){
+		LOG_E("mpu_stby(): failed to read reg PWR_MGMT_2 (0x%02X)", MPU_REG_PWR_MGMT_2);
+		return false;
+	}
 
-	g_mpu_cache[0] &= ~MPU_STBY_ALL;
-	g_mpu_cache[0] |= stby;
+	gc_mpu[0] &= ~MPU_STBY_ALL;
+	gc_mpu[0] |= stby;
 
-	if(!mpu_write_register((uint8_t[]){MPU_REG_PWR_MGMT_2, g_mpu_cache[0]}, 2, false)) return false;
+	if(!mpu_write_register((uint8_t[]){MPU_REG_PWR_MGMT_2, gc_mpu[0]}, 2, false)){
+		LOG_E("mpu_stby(): failed to write 0x%02X to reg PWR_MGMT_2 (0x%02X)", gc_mpu[0], MPU_REG_PWR_MGMT_2);
+		return false;
+	}
 
 	sleep_ms(5);
+
+	LOG_I("mpu_stby(): written 0x%02X to reg PWR_MGMT_2 (0x%02X)", gc_mpu[0], MPU_REG_PWR_MGMT_2);
 
 	return true;
 }
 
 bool mpu_clk_sel(mpu_clk_sel_t clksel){
-	if(!mpu_read_register(MPU_REG_PWR_MGMT_1, g_mpu_cache, 1, true)) return false;
+	if(!mpu_read_register(MPU_REG_PWR_MGMT_1, gc_mpu, 1, true)){
+		LOG_E("mpu_clk_sel(): failed to read reg PWR_MGMT_1 (0x%02X)", MPU_REG_PWR_MGMT_1);
+		return false;
+	}
 
-	g_mpu_cache[0] &= ~MPU_CLK_STOP;
-	g_mpu_cache[0] |= clksel;
+	gc_mpu[0] &= ~MPU_CLK_STOP;
+	gc_mpu[0] |= clksel;
 
-	if(!mpu_write_register((uint8_t[]){MPU_REG_PWR_MGMT_1, g_mpu_cache[0]}, 2, false)) return false;
+	if(!mpu_write_register((uint8_t[]){MPU_REG_PWR_MGMT_1, gc_mpu[0]}, 2, false)){
+		LOG_E("mpu_clk_sel(): failed to write 0x%02X to reg PWR_MGMT_1 (0x%02X)", gc_mpu[0], MPU_REG_PWR_MGMT_1);
+		return false;
+	}
 
 	sleep_ms(5);
+
+	LOG_I("mpu_clk_sel(): written 0x%02X to reg PWR_MGMT_1 (0x%02X)", gc_mpu[0], MPU_REG_PWR_MGMT_1);
 
 	return true;
 }
@@ -272,14 +334,23 @@ bool mpu_clk_sel(mpu_clk_sel_t clksel){
 // === DLPF configuration ===
 // ==========================
 bool mpu_dlpf_cfg(mpu_dlpf_cfg_t cfg){
-	if(!mpu_read_register(MPU_REG_CONFIG, g_mpu_cache, 1, true)) return false;
+	if(!mpu_read_register(MPU_REG_CONFIG, gc_mpu, 1, true)){
+		LOG_E("mpu_dlpf_cfg(): failed to read reg CONFIG (0x%02X)", MPU_REG_CONFIG);
+		return false;
+	}
 
-	g_mpu_cache[0] &= ~MPU_DLPF_CFG_3600HZ;
-	g_mpu_cache[0] |= cfg;
+	gc_mpu[0] &= ~MPU_DLPF_CFG_3600HZ;
+	gc_mpu[0] |= cfg;
 
-	if(!mpu_write_register((uint8_t[]){MPU_REG_CONFIG, g_mpu_cache[0]}, 2, false)) return false;
+	if(!mpu_write_register((uint8_t[]){MPU_REG_CONFIG, gc_mpu[0]}, 2, false)){
+		LOG_E("mpu_dlpf_cfg(): failed to write 0x%02X to reg CONFIG (0x%02X)", gc_mpu[0], MPU_REG_CONFIG);
+		return false;
+	}
 
 	sleep_ms(5);
+
+	LOG_I("mpu_dlpf_cfg(): written 0x%02X to reg CONFIG (0x%02X)", gc_mpu[0], MPU_REG_CONFIG);
+
 	return true;
 }
 
@@ -287,14 +358,18 @@ bool mpu_dlpf_cfg(mpu_dlpf_cfg_t cfg){
 // === Set Sample Rate ===
 // =======================
 bool mpu_smplrt_div(mpu_smplrt_div_t smplrt_div){
-	if(!g_mpu) return false;
+	gc_mpu[0] = MPU_REG_SMPLRT_DIV;
+	gc_mpu[1] = smplrt_div;
 
-	g_mpu_cache[0] = MPU_REG_SMPLRT_DIV;
-	g_mpu_cache[1] = smplrt_div;
-
-	if(!mpu_write_register(g_mpu_cache, 2, false)) return false;
+	if(!mpu_write_register(gc_mpu, 2, false)){
+		LOG_E("mpu_smplrt_div(): failed to write 0x%02X to reg SMPLRT_DIV (0x%02X)", gc_mpu[1], gc_mpu[0]);
+		return false;
+	}
 
 	sleep_ms(5);
+
+	LOG_I("mpu_smplrt_div(): written 0x%02X to reg SMPLRT_DIV (0x%02X)", gc_mpu[1], gc_mpu[0]);
+
 	return true;
 }
 
@@ -302,15 +377,24 @@ bool mpu_smplrt_div(mpu_smplrt_div_t smplrt_div){
 // === Accel High Pass Filter ===
 // ==============================
 bool mpu_ahpf(mpu_ahpf_t ahpf){
-	if(!mpu_read_register(MPU_REG_ACCEL_CONFIG, g_mpu_cache, 1, true)) return false;
+	if(!mpu_read_register(MPU_REG_ACCEL_CONFIG, gc_mpu, 1, true)){
+		LOG_E("mpu_ahpf(): failed to read reg ACCEL_CONFIG (0x%02X)", MPU_REG_ACCEL_CONFIG);
+		return false;
+	}
 
-	g_mpu_cache[0] &= ~MPU_AHPF_HOLD;
-	g_mpu_cache[1] = (g_mpu_cache[0] | ahpf);
-	g_mpu_cache[0] = MPU_REG_ACCEL_CONFIG;
+	gc_mpu[0] &= ~MPU_AHPF_HOLD;
+	gc_mpu[1] = (gc_mpu[0] | ahpf);
+	gc_mpu[0] = MPU_REG_ACCEL_CONFIG;
 
-	if(!mpu_write_register(g_mpu_cache, 2, false)) return false;
+	if(!mpu_write_register(gc_mpu, 2, false)){
+		LOG_E("mpu_ahpf(): failed to write 0x%02X to reg ACCEL_CONFIG (0x%02X)", gc_mpu[1], gc_mpu[0]);
+		return false;
+	}
 
 	sleep_ms(5);
+
+	LOG_I("mpu_ahpf(): written 0x%02X to reg ACCEL_CONFIG (0x%02X)", gc_mpu[1], gc_mpu[0]);
+
 	return true;
 }
 
@@ -332,30 +416,43 @@ bool mpu_ahpf(mpu_ahpf_t ahpf){
  */
 bool mpu_cycle_mode(mpu_cycle_t mode, mpu_lp_wake_t wake_up_rate){
 	// Read current power management registers (PWR_MGMT_1 and PWR_MGMT_2)
-	if(!mpu_read_register(MPU_REG_PWR_MGMT_1, g_mpu_cache, 2, true)) return false;
+	if(!mpu_read_register(MPU_REG_PWR_MGMT_1, gc_mpu, 2, true)){
+		LOG_E("mpu_cycle_mode(): failed to read 2 bytes from reg PWR_MGMT_1 (0x%02X)", MPU_REG_PWR_MGMT_1);
+		return false;
+	}
 
 	// Enable or disable cycle mode
 	if(mode == MPU_CYCLE_ON || mode == MPU_CYCLE_LP){
-		g_mpu_cache[0] |= MPU_CYCLE; // Activate CYCLE (set to 1)
-		g_mpu_cache[0] &= ~MPU_SLEEP; // Deactivate SLEEP (set to 0)
+		gc_mpu[0] |= MPU_CYCLE; // Activate CYCLE (set to 1)
+		gc_mpu[0] &= ~MPU_SLEEP; // Deactivate SLEEP (set to 0)
 
-		g_mpu_cache[1] &= ~MPU_LP_WAKE_40HZ; // Clear previous wake-up frequency bits
-		g_mpu_cache[1] |= wake_up_rate; // Set new wake-up frequency
+		gc_mpu[1] &= ~MPU_LP_WAKE_40HZ; // Clear previous wake-up frequency bits
+		gc_mpu[1] |= wake_up_rate; // Set new wake-up frequency
 		if(mode == MPU_CYCLE_LP){
-			g_mpu_cache[0] |= MPU_TEMP_DIS; // Deactivate Temperature sensor (set to 1)
+			gc_mpu[0] |= MPU_TEMP_DIS; // Deactivate Temperature sensor (set to 1)
 
-			g_mpu_cache[1] |= MPU_STBY_GYRO; // Keep gyro in standby during LP cycle
+			gc_mpu[1] |= MPU_STBY_GYRO; // Keep gyro in standby during LP cycle
+
+			LOG_I("mpu_cycle_mode(): initiating low power cycle mode");
 		}
+		LOG_I("mpu_cycle_mode(): initiating cycle mode");
 	}else{
-		g_mpu_cache[0] &= ~MPU_CYCLE;  // Clear CYCLE bit
-		g_mpu_cache[1] &= ~MPU_LP_WAKE_40HZ; // Clear LP wake frequency bits
-		g_mpu_cache[1] &= ~MPU_STBY_GYRO; // Reactivate gyro if it was in standby
+		LOG_I("mpu_cycle_mode(): initiating deactivation of cycle mode");
+		gc_mpu[0] &= ~MPU_CYCLE;  // Clear CYCLE bit
+		gc_mpu[0] &= ~MPU_TEMP_DIS; // Reactivate temp if it was in standby
+		gc_mpu[1] &= ~MPU_LP_WAKE_40HZ; // Clear LP wake frequency bits
+		gc_mpu[1] &= ~MPU_STBY_GYRO; // Reactivate gyro if it was in standby
 	}
 
 	// Write back updated registers
-	if(!mpu_write_register((uint8_t[]){MPU_REG_PWR_MGMT_1, g_mpu_cache[0], g_mpu_cache[1]}, 3, false)) return false;
+	if(!mpu_write_register((uint8_t[]){MPU_REG_PWR_MGMT_1, gc_mpu[0], gc_mpu[1]}, 3, false)){
+		LOG_E("mpu_cycle_mode(): failed to write 0x%02X, 0x%02X to reg PWR_MGMT_1 (0x%02X)", gc_mpu[0], gc_mpu[1], MPU_REG_PWR_MGMT_1);
+		return false;
+	}
 
 	sleep_ms(10); // Activation pause
+
+	LOG_I("mpu_cycle_mode(): initiating complete. written 0x%02X, 0x%02X to reg PWR_MGMT_1 (0x%02X)", gc_mpu[0], gc_mpu[1], MPU_REG_PWR_MGMT_1);
 
 	return true;
 }
@@ -366,27 +463,39 @@ bool mpu_cycle_mode(mpu_cycle_t mode, mpu_lp_wake_t wake_up_rate){
 // ===================================
 bool mpu_fsr(mpu_fsr_t fsr, mpu_afsr_t afsr){
 	// Read FSR Register
-	if(!mpu_read_register(MPU_REG_GYRO_CONFIG, g_mpu_cache, 2, true)) return false;
+	if(!mpu_read_register(MPU_REG_GYRO_CONFIG, gc_mpu, 2, true)){
+		LOG_E("mpu_fsr(): failed to read 2 bytes from reg GYRO_CONFIG (0x%02X)", MPU_REG_GYRO_CONFIG);
+		return false;
+	}
 	
 	// Gyro FSR bits
-	g_mpu_cache[0] &= ~MPU_FSR_2000DPS; // Delete bits 4:3
-	g_mpu_cache[0] |= fsr; // Set FSR Bits
+	gc_mpu[0] &= ~MPU_FSR_2000DPS; // Delete bits 4:3
+	gc_mpu[0] |= fsr; // Set FSR Bits
+	LOG_D("mpu_fsr(): prepare fsr (0x%02X)", fsr);
 
 	// Automatic scaling calculation:
 	// 131 / 2^bits → sensitivity in °/s
 	g_mpu->conf.fsr_div.gyro = 131.0f / (1 << ((fsr >> 3) & 0x03));
+	LOG_D("mpu_fsr(): FSR_DIV set to %f", g_mpu->conf.fsr_div.gyro);
 
 	// Accel FSR bits
-	g_mpu_cache[1] &= ~MPU_AFSR_16G;
-	g_mpu_cache[1] |= afsr;
+	gc_mpu[1] &= ~MPU_AFSR_16G;
+	gc_mpu[1] |= afsr;
+	LOG_D("mpu_fsr(): prepare afsr (0x%02X)", afsr);
 
 	// Automatic scaling calculation (raw / divider = G)
 	g_mpu->conf.fsr_div.accel = 16384.0f / (1 << ((afsr >> 3) & 0x03));
+	LOG_D("mpu_fsr(): AFSR_DIV set to %f", g_mpu->conf.fsr_div.accel);
 
 	// Write back to registers
-	if(!mpu_write_register((uint8_t[]){MPU_REG_GYRO_CONFIG, g_mpu_cache[0], g_mpu_cache[1]}, 3, false)) return false;
+	if(!mpu_write_register((uint8_t[]){MPU_REG_GYRO_CONFIG, gc_mpu[0], gc_mpu[1]}, 3, false)){
+		LOG_E("mpu_fsr(): failed to write 0x%02X, 0x%02X to reg GYRO_CONFIG (0x%02X)", gc_mpu[0], gc_mpu[1], MPU_REG_GYRO_CONFIG);
+		return false;
+	}
 
 	sleep_ms(5);
+
+	LOG_I("mpu_fsr(): configured Full Scale Range. written 0x%02X, 0x%02X to reg GYRO_CONFIG (0x%02X)", gc_mpu[0], gc_mpu[1], MPU_REG_GYRO_CONFIG);
 
 	return true;
 }
@@ -402,16 +511,15 @@ bool mpu_fsr(mpu_fsr_t fsr, mpu_afsr_t afsr){
 // * accelerometer will get complietly 0.             *
 // * Offset will get saved in the device struct.      *
 // ====================================================
-//
-// argument:
-// 	sensor = mpu_sensor_t sets wich sensor(s)
-// 	samples = how many samples it should make
-//
-// return:
-// 	true = everything is ok
-// 	false = struct not set to use or could not read
-// 	        the sensor
-// ====================================================
+/*
+ * @parameter:
+ * 	- sensor = mpu_sensor_t sets wich sensor(s)
+ * 	- samples = how many samples it should make
+ *
+ * @return:
+ * 	- true = everything is ok
+ * 	- false = struct not set to use or failed to read the sensor
+ */
 bool mpu_calibrate(mpu_sensor_t sensor, uint8_t samples){
 	if(!g_mpu) return false; // Check if g_mpu is set to the device pointer 
 
@@ -423,11 +531,11 @@ bool mpu_calibrate(mpu_sensor_t sensor, uint8_t samples){
 
 	if(mask & MPU_GYRO){ // Checks if gyro should be calibrated
 		for(uint8_t i = 0; i < samples; i++){
-			if(!mpu_read_register(MPU_REG_GYRO_XOUT_H, g_mpu_cache, 6, false)) return false; // Read the gyro output
+			if(!mpu_read_register(MPU_REG_GYRO_XOUT_H, gc_mpu, 6, false)) return false; // Read the gyro output
 
-			g_mpu->v.gyro.raw.x = (g_mpu_cache[0]  << 8) | g_mpu_cache[1]; // Store x axis output in gyro.raw.x
-			g_mpu->v.gyro.raw.y = (g_mpu_cache[2]  << 8) | g_mpu_cache[3]; // Store y axis output in gyro.raw.y
-			g_mpu->v.gyro.raw.z = (g_mpu_cache[4]  << 8) | g_mpu_cache[5]; // Store z axis output in gyro.raw.z
+			g_mpu->v.gyro.raw.x = (gc_mpu[0]  << 8) | gc_mpu[1]; // Store x axis output in gyro.raw.x
+			g_mpu->v.gyro.raw.y = (gc_mpu[2]  << 8) | gc_mpu[3]; // Store y axis output in gyro.raw.y
+			g_mpu->v.gyro.raw.z = (gc_mpu[4]  << 8) | gc_mpu[5]; // Store z axis output in gyro.raw.z
 
 			sum_x += g_mpu->v.gyro.raw.x; // Add x axis output to sum_x
 			sum_y += g_mpu->v.gyro.raw.y; // Add y axis output to sum_y
@@ -444,11 +552,11 @@ bool mpu_calibrate(mpu_sensor_t sensor, uint8_t samples){
 	if (mask & MPU_ACCEL){ // Checks if accelerometer should be calibrated
 		for(uint8_t i = 0; i < samples; i++){
 			sum_x = 0; sum_y = 0; sum_z = 0; // Set sum back to `0` in case both sensors got read
-			if(!mpu_read_register(MPU_REG_ACCEL_XOUT_H, g_mpu_cache, 6, false)) return false; // Read the accelerometer output
+			if(!mpu_read_register(MPU_REG_ACCEL_XOUT_H, gc_mpu, 6, false)) return false; // Read the accelerometer output
 
-			g_mpu->v.accel.raw.x = (g_mpu_cache[0]  << 8) | g_mpu_cache[1]; // Store x axis output in accel.raw.x
-			g_mpu->v.accel.raw.y = (g_mpu_cache[2]  << 8) | g_mpu_cache[3]; // Store y axis output in accel.raw.y
-			g_mpu->v.accel.raw.z = (g_mpu_cache[4]  << 8) | g_mpu_cache[5]; // Store z axis output in accel.raw.z
+			g_mpu->v.accel.raw.x = (gc_mpu[0]  << 8) | gc_mpu[1]; // Store x axis output in accel.raw.x
+			g_mpu->v.accel.raw.y = (gc_mpu[2]  << 8) | gc_mpu[3]; // Store y axis output in accel.raw.y
+			g_mpu->v.accel.raw.z = (gc_mpu[4]  << 8) | gc_mpu[5]; // Store z axis output in accel.raw.z
 
 			sum_x += g_mpu->v.accel.raw.x; // Add x axis output to sum_x
 			sum_y += g_mpu->v.accel.raw.y; // Add y axis output to sum_y
@@ -476,18 +584,18 @@ bool mpu_calibrate(mpu_sensor_t sensor, uint8_t samples){
 // === Read Sensor Data + Optional Scaling ====
 // ============================================
 // * Reads all sensors or only optional       *
-// * scaling one based on the given argument. *
+// * scaling based on the given argument.     *
 // ============================================
-// argument:
-// 	sensor = Takes sensors given as
-// 		 `mpu_sensor_t`
-//
-// return:
-// 	true = could read (and Calculate) the
-// 	       given `sensors`
-// 	false = could not read or calculate 
-// 		the given `sensors`
-// ============================================
+/* @parameter:
+ *	- sensor = Takes sensors given as `mpu_sensor_t`
+ *
+ * @return:
+ *	- true = could read (and Calculate) the given `sensors`
+ *	- false = failed to read or calculate the given `sensors`
+ *
+ * @notes:
+ *	- If two sensors are given all three will be read (less I²C overhead), but only the given will be scaled (if given).
+ */
 bool mpu_read_sensor(mpu_sensor_t sensor){
 	if(!g_mpu) return false; // Check if the global device pointer is set
 
@@ -495,37 +603,37 @@ bool mpu_read_sensor(mpu_sensor_t sensor){
 	
 	if((mask & (mask - 1))){ // If two or more sensors are read it reads all for less overhead.
 
-		if(!mpu_read_register(MPU_REG_ACCEL_XOUT_H, g_mpu_cache, 14, false)) return false; // Read all output register
+		if(!mpu_read_register(MPU_REG_ACCEL_XOUT_H, gc_mpu, 14, false)) return false; // Read all output register
 
-		g_mpu->v.accel.raw.x = (g_mpu_cache[0]  << 8) | g_mpu_cache[1]; // Save raw accelerometer x axis
-		g_mpu->v.accel.raw.y = (g_mpu_cache[2]  << 8) | g_mpu_cache[3]; // Save raw accelerometer y axis
-		g_mpu->v.accel.raw.z = (g_mpu_cache[4]  << 8) | g_mpu_cache[5]; // Save raw accelerometer z axis
-		g_mpu->v.temp.raw =    (g_mpu_cache[6]  << 8) | g_mpu_cache[7]; // Save raw temperatur
-		g_mpu->v.gyro.raw.x =  (g_mpu_cache[8]  << 8) | g_mpu_cache[9]; // Save raw gyro x axis
-		g_mpu->v.gyro.raw.y =  (g_mpu_cache[10] << 8) | g_mpu_cache[11]; // Save raw gyro y axis ;
-		g_mpu->v.gyro.raw.z =  (g_mpu_cache[12] << 8) | g_mpu_cache[13]; // Save raw gyro z axis ;
+		g_mpu->v.accel.raw.x = (gc_mpu[0]  << 8) | gc_mpu[1]; // Save raw accelerometer x axis
+		g_mpu->v.accel.raw.y = (gc_mpu[2]  << 8) | gc_mpu[3]; // Save raw accelerometer y axis
+		g_mpu->v.accel.raw.z = (gc_mpu[4]  << 8) | gc_mpu[5]; // Save raw accelerometer z axis
+		g_mpu->v.temp.raw =    (gc_mpu[6]  << 8) | gc_mpu[7]; // Save raw temperatur
+		g_mpu->v.gyro.raw.x =  (gc_mpu[8]  << 8) | gc_mpu[9]; // Save raw gyro x axis
+		g_mpu->v.gyro.raw.y =  (gc_mpu[10] << 8) | gc_mpu[11]; // Save raw gyro y axis ;
+		g_mpu->v.gyro.raw.z =  (gc_mpu[12] << 8) | gc_mpu[13]; // Save raw gyro z axis ;
 
 	}else{
 		if(mask & MPU_ACCEL){ // Only accelerometer
-			if(!mpu_read_register(MPU_REG_ACCEL_XOUT_H, g_mpu_cache, 6, false)) return false; // Read accelerometer output register
+			if(!mpu_read_register(MPU_REG_ACCEL_XOUT_H, gc_mpu, 6, false)) return false; // Read accelerometer output register
 
-			g_mpu->v.accel.raw.x = (g_mpu_cache[0]  << 8) | g_mpu_cache[1]; // Save raw accelerometer x axis
-			g_mpu->v.accel.raw.y = (g_mpu_cache[2]  << 8) | g_mpu_cache[3]; // Save raw accelerometer y axis
-			g_mpu->v.accel.raw.z = (g_mpu_cache[4]  << 8) | g_mpu_cache[5]; // Save raw accelerometer z axis
+			g_mpu->v.accel.raw.x = (gc_mpu[0]  << 8) | gc_mpu[1]; // Save raw accelerometer x axis
+			g_mpu->v.accel.raw.y = (gc_mpu[2]  << 8) | gc_mpu[3]; // Save raw accelerometer y axis
+			g_mpu->v.accel.raw.z = (gc_mpu[4]  << 8) | gc_mpu[5]; // Save raw accelerometer z axis
 
 		}
 		if(mask & MPU_TEMP){ // Only temperatur
-			if(!mpu_read_register(MPU_REG_TEMP_OUT_H, g_mpu_cache, 2, false)) return false; // Reads temperatur output register
+			if(!mpu_read_register(MPU_REG_TEMP_OUT_H, gc_mpu, 2, false)) return false; // Reads temperatur output register
 
-			g_mpu->v.temp.raw = (g_mpu_cache[0]  << 8) | g_mpu_cache[1]; // Save raw temperatur
+			g_mpu->v.temp.raw = (gc_mpu[0]  << 8) | gc_mpu[1]; // Save raw temperatur
 
 		}
 		if(mask & MPU_GYRO){ // Only gyroscope
-			if(!mpu_read_register(MPU_REG_GYRO_XOUT_H, g_mpu_cache, 6, false)) return false; // Read gyro output register
+			if(!mpu_read_register(MPU_REG_GYRO_XOUT_H, gc_mpu, 6, false)) return false; // Read gyro output register
 
-			g_mpu->v.gyro.raw.x = (g_mpu_cache[0]  << 8) | g_mpu_cache[1]; // Save raw gyro x axis
-			g_mpu->v.gyro.raw.y = (g_mpu_cache[2] << 8) | g_mpu_cache[3]; // Save raw gyro y axis
-			g_mpu->v.gyro.raw.z = (g_mpu_cache[4] << 8) | g_mpu_cache[5]; // Save raw gyro z axis
+			g_mpu->v.gyro.raw.x = (gc_mpu[0]  << 8) | gc_mpu[1]; // Save raw gyro x axis
+			g_mpu->v.gyro.raw.y = (gc_mpu[2] << 8) | gc_mpu[3]; // Save raw gyro y axis
+			g_mpu->v.gyro.raw.z = (gc_mpu[4] << 8) | gc_mpu[5]; // Save raw gyro z axis
 		}
 	}
 
@@ -558,13 +666,11 @@ volatile bool g_mpu_int_flag; // True if an interrupt occurred, else false
 // * goes high. Sets `g_mpu_int_flag`
 // * true if high.
 // ======================================
-//
-// argument:
-// 	gpio = the pin who got the
-// 	       interrupt
-// 	events = the called interrupt
-// 	         event
-// ======================================
+/*
+ * @parameter:
+ * 	- gpio = the pin who got the interrupt
+ * 	- events = the called interrupt event
+ */
 void mpu_irq_handler(uint gpio, uint32_t events){
     if(gpio == MPU_INT_PIN){   // Checks if the called pin is MPU_INT_PIN
         g_mpu_int_flag = true; // if it is set `g_mpu_int_flag` true.
@@ -580,23 +686,21 @@ void mpu_irq_handler(uint gpio, uint32_t events){
 // * as `cfg` and writes it to the          *
 // * INT_PIN_CFG register.                  *
 // ==========================================
-//
-// argument:
-// 	cfg = bitmask for the INT_PIN_CFG
-// 	      register
-//
-// return:
-// 	true = everything is ok
-// 	false = could not write to the
-// 	        INT_PIN_CFG register
-// ==========================================
+/*
+ * @parameter:
+ * 	- cfg = bitmask for the INT_PIN_CFG register
+ *
+ * @return:
+ * 	- true = everything is ok
+ * 	- false = failed to write to the INT_PIN_CFG register
+ */
 bool mpu_int_pin_cfg(mpu_int_pin_cfg_t cfg){
-	if(!mpu_read_register(MPU_REG_INT_PIN_CFG, g_mpu_cache, 1, true)) return false; // Reads the INT_PIN_CFG register and save it in g_mpu_cache
+	if(!mpu_read_register(MPU_REG_INT_PIN_CFG, gc_mpu, 1, true)) return false; // Reads the INT_PIN_CFG register and save it in gc_mpu
 
-	g_mpu_cache[0] &= ~MPU_INT_PIN_CFG_ALL; // Unsets all interrupt bits
-	g_mpu_cache[0] |= cfg; // Set the bits given in `cfg`
+	gc_mpu[0] &= ~MPU_INT_PIN_CFG_ALL; // Unsets all interrupt bits
+	gc_mpu[0] |= cfg; // Set the bits given in `cfg`
 
-	if(!mpu_write_register((uint8_t[]){MPU_REG_INT_PIN_CFG, g_mpu_cache[0]}, 2, false)) return false; // Write back to registers
+	if(!mpu_write_register((uint8_t[]){MPU_REG_INT_PIN_CFG, gc_mpu[0]}, 2, false)) return false; // Write back to registers
 
 	sleep_ms(2); // Little activation pause
 
@@ -613,15 +717,15 @@ bool mpu_int_pin_cfg(mpu_int_pin_cfg_t cfg){
 // * And writes the info in the INT_MOTION_CFG *
 // * register.                                 *
 // =============================================
-//
-// argument:
-// 	ms = milli sedonds to move 1-255
-// 	mg = milli gram of force 1-255 * 32
-//
-// return:
-// 	true = everything ok could write cfg
-// 	false = error could not write cfg
-// =============================================
+/*
+ * @parameter:
+ * 	- ms = milli sedonds to move 1-255
+ * 	- mg = milli gram of force 1-255 * 32
+ *
+ * @return:
+ * 	- true = everything ok could write cfg
+ * 	- false = error failed to write cfg
+ */
 bool mpu_int_motion_cfg(uint8_t ms, uint16_t mg){
 	if(ms < 1)         ms = 1;   // Check if argument `ms` are to small
 	else if (ms > 255) ms = 255; // or to big and set it to min/max
@@ -647,23 +751,23 @@ bool mpu_int_motion_cfg(uint8_t ms, uint16_t mg){
 // * the interrupts then sets bit in the INT_ENABLE register,   *
 // * with the bitmask given as the argument `interrupt`.        *
 // ==============================================================
-//
-// arguments:
-// 	interrupt = takes a bitmask for the INT_STATUS register
-//
-// return:
-// 	true = when it could write to the INT_STATUS register
-// 	false = if anything goes wrong
-// ==============================================================
+/*
+ * @parameter:
+ * 	- interrupt = takes a bitmask for the INT_STATUS register
+ *
+ * @return:
+ * 	- true = when it could write to the INT_STATUS register
+ * 	- false = if anything goes wrong
+ */
 bool mpu_int_enable(mpu_int_enable_t interrupt){
 	gpio_set_irq_enabled_with_callback(MPU_INT_PIN, GPIO_IRQ_EDGE_RISE, true, &mpu_irq_handler); // Listen MPU_INT_PIN call `mpu_irq_handler` if pin HIGH
 
-	if(!mpu_read_register(MPU_REG_INT_ENABLE, g_mpu_cache, 1, true)) return false; // Read the INT_ENABLE register
+	if(!mpu_read_register(MPU_REG_INT_ENABLE, gc_mpu, 1, true)) return false; // Read the INT_ENABLE register
 
-	g_mpu_cache[0] &= ~MPU_INT_ENABLE_ALL; // Unsets all interrupt bits
-	g_mpu_cache[0] |= interrupt; // Sets with the bitmask given by argument
+	gc_mpu[0] &= ~MPU_INT_ENABLE_ALL; // Unsets all interrupt bits
+	gc_mpu[0] |= interrupt; // Sets with the bitmask given by argument
 
-	if(!mpu_write_register((uint8_t[]){MPU_REG_INT_ENABLE, g_mpu_cache[0]}, 2, false)) return false; // Write back to registers
+	if(!mpu_write_register((uint8_t[]){MPU_REG_INT_ENABLE, gc_mpu[0]}, 2, false)) return false; // Write back to registers
 
 	sleep_ms(2); // Little activation pause
 
@@ -678,21 +782,21 @@ bool mpu_int_enable(mpu_int_enable_t interrupt){
 // * register and returns true when any interrupt *
 // * bit is 1 other wise false.                   *
 // ================================================
-//
-// return:
-// 	true = an interrupt has occurred
-// 	false = no interrupt
-// ================================================
+/*
+ * @return:
+ * 	- true = an interrupt has occurred
+ * 	- false = no interrupt
+ */
 bool mpu_int_status(void){
 	if(!g_mpu_int_flag) return false; // Checks if an interrupt occurred at MPU_INT_PIN
 	else g_mpu_int_flag = false; // When an interrupt has occurred set the flag false
 
-	if(!mpu_read_register(MPU_REG_INT_STATUS, g_mpu_cache, 1, false)) return false; // Read INT_STATUS register save output in g_mpu_cache else return false
+	if(!mpu_read_register(MPU_REG_INT_STATUS, gc_mpu, 1, false)) return false; // Read INT_STATUS register save output in gc_mpu else return false
 
-	if((g_mpu_cache[0] & MPU_DATA_RDY_INT) || // Check data ready interrupt
-	   (g_mpu_cache[0] & MPU_I2C_MST_INT)  || // Check I²C master interrupt
-	   (g_mpu_cache[0] & MPU_MOTION_INT)   || // Check motion interrupt
-	   (g_mpu_cache[0] & MPU_FIFO_OFLOW_INT)) return true; // Check fifo overflow interrupt and return true if any was set
+	if((gc_mpu[0] & MPU_DATA_RDY_INT) || // Check data ready interrupt
+	   (gc_mpu[0] & MPU_I2C_MST_INT)  || // Check I²C master interrupt
+	   (gc_mpu[0] & MPU_MOTION_INT)   || // Check motion interrupt
+	   (gc_mpu[0] & MPU_FIFO_OFLOW_INT)) return true; // Check fifo overflow interrupt and return true if any was set
 	else return false;
 }
 #endif
