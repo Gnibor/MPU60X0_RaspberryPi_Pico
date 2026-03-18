@@ -1,41 +1,26 @@
-/*
- * ================================================================
- *  Project:      MPU-60X0 Driver for Raspberry Pi Pico
- *  File:         mpu60x0.h
- *  Author:       (Gnibor) Robin Gerhartz
- *  License:      MIT License
- *  Repository:   https://github.com/Gnibor/MPU60X0_RaspberryPi_Pico
- * ================================================================
+/**
+ * @file mpu.h
+ * @author Robin Gerhartz (Gnibor)
+ * @brief Low-level driver implementation for the MPU IMU sensor.
  *
- *  MIT License
+ * @details
+ * This driver for the Raspberry Pi Pico implements:
+ * - I²C communication
+ * - Register-level configuration
+ * - Sensor data acquisition
+ * - Automatic scaling (raw -> physical units)
+ * - Gyroscope zero-point calibration
+ * - Power management features
+ * - Timing and cycle management
+ * - Interrupt configuration and status monitoring
  *
- *  Copyright (c) 2026 (Gnibor) Robin Gerhartz
+ * The driver is written in a lightweight embedded style, optimized for 
+ * performance and memory efficiency on the Raspberry Pi Pico.
  *
- *  Permission is hereby granted, free of charge, to any person
- *  obtaining a copy of this software and associated documentation
- *  files (the "Software"), to deal in the Software without restriction,
- *  including without limitation the rights to use, copy, modify,
- *  merge, publish, distribute, sublicense, and/or sell copies of
- *  the Software, and to permit persons to whom the Software is
- *  furnished to do so, subject to the following conditions:
- *
- *  The above copyright notice and this permission notice shall be
- *  included in all copies or substantial portions of the Software.
- *
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- *  EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- *  OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- *  NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- *  HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- *  WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
- *  DEALINGS IN THE SOFTWARE.
- *
- * ================================================================
- *
- *  Public API for the MPU-60X0 driver.
- *
- * ================================================================
+ * @project MPU Driver for Raspberry Pi Pico
+ * @license MIT License (see LICENSE file in root)
+ * @copyright Copyright (c) 2026 (Gnibor) Robin Gerhartz
+ * @see https://github.com/Gnibor/MPU-Driver-Raspberry-Pi-Pico
  */
 #ifndef MPU60X0_H
 #define MPU60X0_H

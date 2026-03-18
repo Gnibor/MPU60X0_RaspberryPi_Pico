@@ -1,31 +1,26 @@
-/*
- * ================================================================
- *  Project:      MPU-60X0 Driver for Raspberry Pi Pico
- *  File:         mpu60x0.c
- *  Author:       (Gnibor) Robin Gerhartz
- *  License:      MIT License
- *  Repository:   https://github.com/Gnibor/MPU60X0_RaspberryPi_Pico
- * ================================================================
+/**
+ * @file mpu.c
+ * @author Robin Gerhartz (Gnibor)
+ * @brief Low-level driver implementation for the MPU IMU sensor.
  *
- *  Description:
- *  Low-level driver implementation for the
- *  MPU-6050 6-axis IMU sensor.
+ * @details
+ * This driver for the Raspberry Pi Pico implements:
+ * - I²C communication
+ * - Register-level configuration
+ * - Sensor data acquisition
+ * - Automatic scaling (raw -> physical units)
+ * - Gyroscope zero-point calibration
+ * - Power management features
+ * - Timing and cycle management
+ * - Interrupt configuration and status monitoring
  *
- *  This file implements:
- *  - I²C communication
- *  - Register-level configuration
- *  - Sensor data acquisition
- *  - Automatic scaling (raw -> physical units)
- *  - Gyroscope zero-point calibration
- *  - Power management features
- *  - Timing management features (!!!CYCLE Still Work In Progress!!!)
- *  - Interrupt configuration and status check (!!!Work In Progress!!!)
+ * The driver is written in a lightweight embedded style, optimized for 
+ * performance and memory efficiency on the Raspberry Pi Pico.
  *
- *  The driver is written in a lightweight embedded style
- *  and uses function pointers inside a device structure
- *  to emulate object-oriented behavior in C.
- *
- * ================================================================
+ * @project MPU Driver for Raspberry Pi Pico
+ * @license MIT License (see LICENSE file in root)
+ * @copyright Copyright (c) 2026 (Gnibor) Robin Gerhartz
+ * @see https://github.com/Gnibor/MPU-Driver-Raspberry-Pi-Pico
  */
 #include "hardware/gpio.h"
 #include <string.h>
