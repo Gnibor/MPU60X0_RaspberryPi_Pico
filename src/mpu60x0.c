@@ -27,7 +27,6 @@
  *
  * ================================================================
  */
-#include "hardware/i2c.h"
 #include "hardware/gpio.h"
 #include <hardware/structs/i2c.h>
 #include <pico/time.h>

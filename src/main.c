@@ -1,6 +1,6 @@
 /*
  * ================================================================
- *  Project:      GY-521 (MPU-6050) Driver Example for RP2040
+ *  Project:      MPU-60X0 Driver Example for RP2040
  *  File:         main.c
  *  Author:       (Gnibor) Robin Gerhartz
  *  License:      MIT License
@@ -9,7 +9,7 @@
  *
  *  Description:
  *  Example application demonstrating how to initialize,
- *  configure and read data from the GY-521 (MPU-6050)
+ *  configure and read data from the MPU-60X0
  *  accelerometer + gyroscope module using the RP2040.
  *
  *  Features demonstrated:
@@ -28,7 +28,6 @@
  */
 #include <stdio.h>
 #include "pico/stdlib.h"
-#include "default.h"
 #include "mpu60x0.h"
 #include "MPU60X0_reg_map.h"
 
