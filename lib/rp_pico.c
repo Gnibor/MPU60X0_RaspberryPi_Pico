@@ -31,7 +31,7 @@ bool is_i2c_initialized(i2c_inst_t *i2c) {
  * @return The detected key as @ref key_t.
  */
 key_t get_key(void) {
-    int c = getchar_timeout_us(0);
+    int c = getchar_timeout_us(1);
     if (c == PICO_ERROR_TIMEOUT) return KEY_NONE;
 
     /* Handle standard Backspace (ASCII 127 = DEL, ASCII 8 = BS) */
@@ -40,7 +40,9 @@ key_t get_key(void) {
     /* Handle ANSI Escape Sequences (starting with ESC [ ...) */
     if (c == 27) { 
         /* Short wait to see if more bytes follow the ESC */
+        c = getchar_timeout_us(1); 
         if (c == '[') {
+            c = getchar_timeout_us(1);
             switch (c) {
                 case 'A': return KEY_UP;
                 case 'B': return KEY_DOWN;
@@ -50,7 +52,7 @@ key_t get_key(void) {
                 case 'F': return KEY_END;
                 case '3': 
                     /* Special handling for DELETE (ESC [ 3 ~) */
-                    if (getchar_timeout_us(10) == '~') return KEY_DELETE;
+                    if (getchar_timeout_us(1) == '~') return KEY_DELETE;
                     break;
                 default: 
                     /* Unknown sequence: consume and return NONE or ESC */

@@ -47,7 +47,7 @@
 // === Configurable Hardware ===
 // =============================
 #ifndef MPU_I2C_PORT
-#define MPU_I2C_PORT i2c1 // Default I2C port
+#define MPU_I2C_PORT i2c1_hw // Default I2C port
 #endif
 
 #ifndef MPU_SDA_PIN
@@ -69,6 +69,8 @@
 #ifndef MPU_INT_PULLUP
 #define MPU_INT_PULLUP 1 // 1 = enable internal pull-up, 0 = disabled
 #endif
+
+#define MPU_ONE_G 16384
 
 /**
  * @brief Sensors and modifiers for read and calibration operations.
@@ -171,7 +173,7 @@ typedef struct mpu_s{
 	// === Configuration ===
 	// =====================
 	struct{
-		i2c_inst_t *i2c_port;
+		i2c_hw_t *i2c_port;
 		mpu_addr_t addr; // Device Address
 		struct{ int32_t x, y, z; } offset_gyro, offset_accel;
 
@@ -179,18 +181,14 @@ typedef struct mpu_s{
 	} conf;
 } mpu_s;
 
+extern mpu_s *g_mpu;
 // ============================
 // === Function declaration ===
 // ============================
-/*
- * mpu_init(addr);
- * Initializes the I²C connection and default configuration.
- * Returns a fully initialized mpu_s struct with function pointers and default values.
- */
-mpu_s mpu_init(i2c_inst_t *i2c_port, mpu_addr_t addr);
+mpu_s mpu_init(i2c_hw_t *i2c_port, mpu_addr_t addr);
 bool mpu_use_struct(mpu_s *device);
-bool mpu_write_register(uint8_t *data, uint8_t how_many, bool block);
-bool mpu_read_register(uint8_t reg, uint8_t *out, uint8_t how_many, bool block);
+bool mpu_write_register(uint8_t *data, uint8_t how_many, bool nostop);
+bool mpu_read_register(uint8_t reg, uint8_t *out, uint8_t how_many);
 bool mpu_who_am_i(void);
 bool mpu_reset(mpu_reset_t reset);
 bool mpu_sleep(mpu_sleep_t sleep); // Set sleep configuration
@@ -198,7 +196,11 @@ bool mpu_stby(mpu_stby_t stby);
 bool mpu_clk_sel(mpu_clk_sel_t clksel);
 bool mpu_smplrt_div(mpu_smplrt_div_t smplrt_div);
 bool mpu_dlpf_cfg(mpu_dlpf_cfg_t cfg);
+bool mpu_ahpf(mpu_ahpf_t ahpf);
 bool mpu_fsr(mpu_fsr_t fsr, mpu_afsr_t afsr);
+
+// need to be done
+bool mpu_bypass(bool bypass_en);
 bool mpu_calibrate(mpu_sensor_t sensor, uint8_t sample); // calibrate sensor offsets
 bool mpu_read_sensor(mpu_sensor_t sensor);
 bool mpu_cycle_mode(mpu_cycle_t mode, mpu_lp_wake_t wake_up_rate);

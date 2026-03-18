@@ -7,19 +7,28 @@ include(pico_sdk_import.cmake)
 
 project(MPU60X0_RaspberryPi_Pico C CXX ASM)
 
+set(PROJECT_VERSION "1.0.4-beta")
+set(PROJECT_AUTHOR "Robin Gerhartz")
 # SDK initialisieren
 pico_sdk_init()
 
+# Den C-Compiler anweisen, diese Makros global verfügbar zu machen
+add_compile_definitions(
+    APP_NAME="${PROJECT_NAME}"
+    APP_VERSION="${PROJECT_VERSION}"
+    APP_AUTHOR="${PROJECT_AUTHOR}"
+)
+
 add_executable(${PROJECT_NAME}
-    src/main.c
-    src/default.c
+    lib/i2c.c
     src/mpu60x0.c
+    src/main.c
     lib/rp_pico.c
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE
-    ${CMAKE_CURRENT_LIST_DIR}/include
     ${CMAKE_CURRENT_LIST_DIR}/lib
+    ${CMAKE_CURRENT_LIST_DIR}/include
 )
 
 target_link_libraries(${PROJECT_NAME}
