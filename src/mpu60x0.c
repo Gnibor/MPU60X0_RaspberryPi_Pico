@@ -225,14 +225,24 @@ bool mpu_who_am_i(void){
 		return false;
 	}
 
-	if(gc_mpu[0] == MPU_WHO_AM_I){
-		LOG_I("mpu_who_am_i(): device is a MPU60X0");
+	if(gc_mpu[0] == MPU60X0_WHO_AM_I){
+		LOG_I("mpu_who_am_i(): device is a MPU60X0 (0x%02X)", gc_mpu[0]);
+		return true;
+	}else if(gc_mpu[0] == MPU9250_WHO_AM_I){
+		LOG_I("mpu_who_am_i(): device is a MPU9250 (0x%02X)", gc_mpu[0]);
+		return true;
+	}else if(gc_mpu[0] == MPU9255_WHO_AM_I){
+		LOG_I("mpu_who_am_i(): device is a MPU9255 (0x%02X)", gc_mpu[0]);
+		return true;
+	}else if(gc_mpu[0] == MPU6500_WHO_AM_I){
+		LOG_I("mpu_who_am_i(): device is a MPU6500 (0x%02X)", gc_mpu[0]);
 		return true;
 	}else{
-		LOG_E("mpu_who_am_i(): device is not a MPU60X0");
+		LOG_E("mpu_who_am_i(): device is not a MPU (0x%02X)", gc_mpu[0]);
 		return false;
 	}
 }
+
 
 /**
  * @brief Performs a software reset on specific internal components or the entire device.
@@ -588,7 +598,7 @@ bool mpu_fsr(mpu_fsr_t fsr, mpu_afsr_t afsr){
 	// Automatic scaling calculation:
 	// 131 / 2^bits → sensitivity in °/s
 	g_mpu->conf.fsr_div.gyro = 131.0f / (1 << ((fsr >> 3) & 0x03));
-	LOG_I("mpu_fsr(): FSR_DIV set to %f", g_mpu->conf.fsr_div.gyro);
+	LOG_I("mpu_fsr(): FSR_DIV set to %d", g_mpu->conf.fsr_div.gyro);
 
 	// Accel FSR bits
 	gc_mpu[1] &= ~MPU_AFSR_16G;
@@ -597,7 +607,7 @@ bool mpu_fsr(mpu_fsr_t fsr, mpu_afsr_t afsr){
 
 	// Automatic scaling calculation (raw / divider = G)
 	g_mpu->conf.fsr_div.accel = 16384.0f / (1 << ((afsr >> 3) & 0x03));
-	LOG_I("mpu_fsr(): AFSR_DIV set to %f", g_mpu->conf.fsr_div.accel);
+	LOG_I("mpu_fsr(): AFSR_DIV set to %d", g_mpu->conf.fsr_div.accel);
 
 	// Write back to registers
 	if(!mpu_write_register((uint8_t[]){MPU_REG_GYRO_CONFIG, gc_mpu[0], gc_mpu[1]}, 3, false)){

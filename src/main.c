@@ -58,29 +58,29 @@ int main(void){
 	//else printf("YA is now stand-by!\n");
 
 	// INT Pin configuration in the MPU60X0
-	mpu_int_pin_cfg(
-		//MPU_INT_LEVEL_LOW  | // 1 = Level, 0 = pulse
-		//MPU_INT_OPEN_DRAIN | // 1 = Push-Pull, 0 = Open-Drain
-		MPU_LATCH_INT_EN   | // Latch Interrupt active
-		MPU_INT_RD_CLEAR     // Interrupt cleared by reading the mpu_int_status()
-	);
-
-	mpu_int_motion_cfg(1, 160);
+	// mpu_int_pin_cfg(
+	// 	//MPU_INT_LEVEL_LOW  | // 1 = Level, 0 = pulse
+	// 	//MPU_INT_OPEN_DRAIN | // 1 = Push-Pull, 0 = Open-Drain
+	// 	MPU_LATCH_INT_EN   | // Latch Interrupt active
+	// 	MPU_INT_RD_CLEAR     // Interrupt cleared by reading the mpu_int_status()
+	// );
+	//
+	// mpu_int_motion_cfg(1, 160);
 
 	//if(mpu_cycle_mode(MPU_CYCLE_ON, MPU_LP_WAKE_5HZ)) printf("Enable Cycle mode!!!\n");
 	sleep_ms(10);
 
 	// Data ready interrupt activate
-	mpu_int_enable(MPU_INT_MOTION_EN);
+	// mpu_int_enable(MPU_INT_MOTION_EN);
 
 	while(1){
-		if(mpu_int_status()){
+		// if(mpu_int_status()){
 			if(mpu_read_sensor(MPU_ALL | MPU_SCALED))
 				printf("G=X:%6.3f Y:%6.3f Z:%6.3f | °C=%6.2f | °/s=X:%9.3f Y:%9.3f Z:%9.3f\n",
 					mpu.v.accel.g.x, mpu.v.accel.g.y, mpu.v.accel.g.z,
 					mpu.v.temp.celsius,
 					mpu.v.gyro.dps.x, mpu.v.gyro.dps.y, mpu.v.gyro.dps.z);
-		}
+		// }
 		sleep_ms(250);
 	}
 }

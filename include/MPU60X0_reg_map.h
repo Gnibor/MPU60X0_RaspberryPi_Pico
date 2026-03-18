@@ -415,6 +415,9 @@ typedef enum {
 
 /* --- Identification --- */
 #define MPU_REG_WHO_AM_I           0x75 // Device identification register
-#define MPU_WHO_AM_I               0x68 // Default chip ID
+#define MPU60X0_WHO_AM_I           0x68 // Default chip ID
+#define MPU6500_WHO_AM_I           0x70 // Default chip ID
+#define MPU9250_WHO_AM_I           0x71 // Default chip ID
+#define MPU9255_WHO_AM_I           0x73 // Default chip ID
 
 #endif
