@@ -425,23 +425,4 @@ typedef enum {
 /* --- Low Power Accelerometer ODR Control (MPU-6500 / 9250 only) --- */
 #define MPU6500_REG_LP_ACCEL_ODR   0x1E  /**< Low-power accel output data rate register */
 
-/** 
- * @brief Wake-up frequencies for Low Power Accelerometer mode (MPU-6500/9250).
- * These values are written to Register 0x1E bits [3:0].
- */
-typedef enum {
-    MPU6500_LP_WAKE_0_24HZ = 0x00, /**< Wake-up at 0.24Hz */
-    MPU6500_LP_WAKE_0_49HZ = 0x01, /**< Wake-up at 0.49Hz */
-    MPU6500_LP_WAKE_0_98HZ = 0x02, /**< Wake-up at 0.98Hz */
-    MPU6500_LP_WAKE_1_95HZ = 0x03, /**< Wake-up at 1.95Hz */
-    MPU6500_LP_WAKE_3_91HZ = 0x04, /**< Wake-up at 3.91Hz */
-    MPU6500_LP_WAKE_7_81HZ = 0x05, /**< Wake-up at 7.81Hz */
-    MPU6500_LP_WAKE_15_63HZ = 0x06, /**< Wake-up at 15.63Hz */
-    MPU6500_LP_WAKE_31_25HZ = 0x07, /**< Wake-up at 31.25Hz */
-    MPU6500_LP_WAKE_62_5HZ  = 0x08, /**< Wake-up at 62.5Hz */
-    MPU6500_LP_WAKE_125HZ   = 0x09, /**< Wake-up at 125Hz */
-    MPU6500_LP_WAKE_250HZ   = 0x0A, /**< Wake-up at 250Hz */
-    MPU6500_LP_WAKE_500HZ   = 0x0B  /**< Wake-up at 500Hz */
-} mpu6500_lp_accel_odr_t;
-
 #endif /* _MPU_REG_MAP_H_ */
