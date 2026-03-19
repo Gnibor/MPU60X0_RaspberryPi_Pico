@@ -258,6 +258,9 @@ static inline void ansi_req_cursor_pos(void)		{ printf("\033[6n"); fflush(stdout
 #define ANSI_BG_WHITE       "\033[47m"          /**< White background. */
 /** @} */
 
+// Color for function names
+#define ANSI_COLOR_FN "\033[38;2;254;172;51m"
+
 #ifndef ANSI_ESC_PICO
 #include "termios.h" /* Required for terminal mode switching */
 #include <unistd.h>  /* Required for read() */

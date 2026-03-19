@@ -3,6 +3,7 @@
 #include "hardware/clocks.h"
 #include "hardware/gpio.h"
 #include "pico/time.h"
+#include "ansi-esc.h"
 #include "rp_pico.h" // Contains LOG_I, LOG_E, LOG_W, LOG_D
 
 /**
@@ -20,7 +21,7 @@ static bool _i2c_wait_for_status(const _i2c_hw_config *cfg, volatile uint32_t *r
 	// Polling loop with safety timeout
 	while (((*reg & mask) != 0) != state) {
 		if (time_reached(timeout_time)) {
-			LOG_E("I2C Timeout: %s (Reg: 0x%08X, Mask: 0x%08X)", context, (uint32_t)reg, mask);
+			LOG_E(ANSI_COLOR_FN "_i2c_recover_bus()" ANSI_RESET ": I2C Timeout: %s (Reg: 0x%08X, Mask: 0x%08X): ", context, (uint32_t)reg, mask);
 			return false;
 		}
 	}
@@ -62,7 +63,7 @@ bool _i2c_is_busy(const _i2c_hw_config *cfg) {
  * @brief Manually toggles SCL as GPIO to force a slave to release SDA.
  */
 void _i2c_recover_bus(const _i2c_hw_config *cfg) {
-	LOG_D("Checking bus health on SDA:%d SCL:%d", cfg->sda_pin, cfg->scl_pin);
+	LOG_D(ANSI_COLOR_FN "_i2c_recover_bus()" ANSI_RESET ": Checking bus health on SDA:%d SCL:%d", cfg->sda_pin, cfg->scl_pin);
 
 	// Set pins to GPIO mode for manual bit-banging
 	gpio_init(cfg->sda_pin);
@@ -72,12 +73,12 @@ void _i2c_recover_bus(const _i2c_hw_config *cfg) {
 
 	// If SDA is stuck LOW, a slave might be waiting for clock pulses
 	if (gpio_get(cfg->sda_pin) == 0) {
-		LOG_W("I2C Bus hung (SDA LOW). Attempting recovery...");
+		LOG_W(ANSI_COLOR_FN "_i2c_recover_bus()" ANSI_RESET ": I2C Bus hung (SDA LOW). Attempting recovery...");
 		for (int i = 0; i < 9; i++) {
 			gpio_put(cfg->scl_pin, 0); sleep_us(5);
 			gpio_put(cfg->scl_pin, 1); sleep_us(5);
 			if (gpio_get(cfg->sda_pin) == 1) {
-				LOG_I("I2C Bus recovered after %d pulses.", i + 1);
+				LOG_I(ANSI_COLOR_FN "_i2c_recover_bus()" ANSI_RESET ": I2C Bus recovered after %d pulses.", i + 1);
 				break;
 			}
 		}
@@ -93,11 +94,11 @@ void _i2c_recover_bus(const _i2c_hw_config *cfg) {
  */
 void _i2c_init(_i2c_hw_config *cfg) {
 	if (_i2c_is_initialized(cfg)) {
-		LOG_D("I2C hardware already active. Skipping init.");
+		LOG_D(ANSI_COLOR_FN "_i2c_init()" ANSI_RESET ": I2C hardware already active. Skipping init.");
 		return;
 	}
 
-	LOG_I("Initializing I2C at %d Hz", cfg->baudrate);
+	LOG_I(ANSI_COLOR_FN "_i2c_init()" ANSI_RESET ": Initializing I2C at %d Hz", cfg->baudrate);
 	_i2c_recover_bus(cfg);
 
 	// Hard reset the I2C peripheral block
@@ -128,7 +129,7 @@ void _i2c_init(_i2c_hw_config *cfg) {
 
 	// Enable the controller
 	cfg->hw->enable = 1;
-	LOG_D("I2C controller is now online.");
+	LOG_D(ANSI_COLOR_FN "_i2c_init()" ANSI_RESET ": I2C controller is now online.");
 }
 
 /**
@@ -167,7 +168,7 @@ bool _i2c_write_buffer(const _i2c_hw_config *cfg, uint8_t addr, const uint8_t *s
 		absolute_time_t timeout_time = make_timeout_time_us(cfg->timeout_us);
 		while (_i2c_is_busy(cfg)) {
 			if (time_reached(timeout_time)) {
-				LOG_E("I2C Busy Timeout (Write) at addr 0x%02X", addr);
+				LOG_E(ANSI_COLOR_FN "_i2c_write_buffer()" ANSI_RESET ": I2C Busy Timeout (Write) at addr 0x%02X", addr);
 				return false;
 			}
 		}
@@ -175,7 +176,7 @@ bool _i2c_write_buffer(const _i2c_hw_config *cfg, uint8_t addr, const uint8_t *s
 
 	// Check for NACK/Abort
 	if (cfg->hw->raw_intr_stat & I2C_IC_RAW_INTR_STAT_TX_ABRT_BITS) {
-		LOG_W("I2C NACK at addr 0x%02X", addr);
+		LOG_W(ANSI_COLOR_FN "_i2c_write_buffer()" ANSI_RESET ": I2C NACK at addr 0x%02X", addr);
 		cfg->hw->clr_tx_abrt;
 		return false;
 	}

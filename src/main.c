@@ -27,6 +27,7 @@
  * ================================================================
  */
 #include "mpu.h"
+#include "rp_pico.h"
 
 int main(void){
 	stdio_usb_init();
@@ -38,33 +39,28 @@ int main(void){
 
 	//mpu_reset(MPU_RESET_SIG_COND);
 
-	if(mpu_reset(MPU_RESET_ALL)) printf("__!Device resetted!__\n");
-	sleep_ms(50);
+	mpu_reset(MPU_RESET_ALL);
 
 	//if(mpu_clk_sel(MPU_CLK_XGYRO)) printf("CLK_SEL is set to the internal 8Mhz clock!!!\n");
 
-	if(mpu_fsr(MPU_FSR_250DPS, MPU_AFSR_2G)) printf("FSR=2000dps, AFSR=8g\n");
-	printf("Try to calibrate GY-521\n");
+	mpu_fsr(MPU_FSR_250DPS, MPU_AFSR_2G);
+
 	sleep_ms(2000);
-	if(mpu_calibrate((MPU_ACCEL_X | MPU_GYRO), 10)) printf("GY-521 gyro and accel is now calibrated.\n");
+	mpu_calibrate((MPU_ACCEL_X | MPU_GYRO), 10);
+
 	//mpu_dlpf_cfg(MPU_DLPF_CFG_184HZ);
 
-	printf("how big is the struct: %dbytes\n", sizeof(mpu));
-
-	//if(!mpu_stby(MPU60X0_STBY_YG)) printf("Could not set stand-by for YA!!!\n");
-	//else printf("YA is now stand-by!\n");
+	LOG_I("how big is the struct: %dbytes", sizeof(mpu));
 
 	// INT Pin configuration in the MPU60X0
 	mpu_int_pin_cfg(
-		//MPU_INT_LEVEL_LOW  | // 1 = Level, 0 = pulse
-		//MPU_INT_OPEN_DRAIN | // 1 = Push-Pull, 0 = Open-Drain
-		MPU_LATCH_INT_EN   | // Latch Interrupt active
-		MPU_INT_RD_CLEAR     // Interrupt cleared by reading the mpu_int_status()
+		MPU_LATCH_INT_EN     | // Latch Interrupt active
+		MPU_INT_RD_CLEAR       // Interrupt cleared by reading the mpu_int_status()
 	);
 
 	mpu_int_motion_cfg(1, 160);
 
-	//if(mpu_cycle_mode(MPU_CYCLE_ON, MPU_LP_WAKE_5HZ)) printf("Enable Cycle mode!!!\n");
+	//if(mpu_cycle_mode(MPU_CYCLE_ON, MPU_LP_WAKE_5HZ)) LOG_I("Enable Cycle mode!!!\n");
 	sleep_ms(10);
 
 	// Data ready interrupt activate

@@ -5,9 +5,9 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # Pico SDK importieren (Pfad muss passen!)
 include(pico_sdk_import.cmake)
 
-project(MPU60X0_RaspberryPi_Pico C CXX ASM)
+project(MPU-Raspberry-Pi-Pico C CXX ASM)
 
-set(PROJECT_VERSION "1.0.4-beta")
+set(PROJECT_VERSION "1.3.0-beta")
 set(PROJECT_AUTHOR "Robin Gerhartz")
 # SDK initialisieren
 pico_sdk_init()

@@ -53,7 +53,7 @@
 #endif
 
 #ifndef MPU_INT_PULLUP
-#define MPU_INT_PULLUP 1 // 1 = enable internal pull-up, 0 = disabled
+#define MPU_INT_PULLUP 0 // 1 = enable internal pull-up, 0 = disabled
 #endif
 
 #define MPU_ONE_G 16384
