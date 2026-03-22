@@ -21,6 +21,8 @@
 #define LOG_NEW_LINE 1
 #endif
 
+#define LOG_PREFIX ANSI_COLOR_FN __func__ ANSI_RESET "():" ANSI_STR(__LINE__)
+
 static inline void pico_stdio_init(void){
 	stdio_init_all();
 
@@ -139,18 +141,22 @@ typedef enum {
 void pico_log(log_level_t level, const char *fmt, ...);
 
 // Handy macros for shorter calls
-#define LOG_W(...) pico_log(LOG_WARN,  __VA_ARGS__)
-#define LOG_E(...) pico_log(LOG_ERROR, __VA_ARGS__)
+// #define LOG_W(...) pico_log(LOG_WARN,  __VA_ARGS__)
+//#define LOG_E(...) pico_log(LOG_ERROR, __VA_ARGS__)
+#define LOG_E(fmt, ...) pico_log(LOG_WARN, ANSI_COLOR_FN "%s" ANSI_RESET "():%d: " fmt, __func__, __LINE__, ##__VA_ARGS__)
+#define LOG_W(fmt, ...) pico_log(LOG_WARN, ANSI_COLOR_FN "%s" ANSI_RESET "():%d: " fmt, __func__, __LINE__, ##__VA_ARGS__)
 
 #if INFO_ENABLED
-#define LOG_I(...) pico_log(LOG_INFO, __VA_ARGS__)
+// #define LOG_I(...) pico_log(LOG_INFO, __VA_ARGS__)
+#define LOG_I(fmt, ...) pico_log(LOG_INFO, ANSI_COLOR_FN "%s" ANSI_RESET "():%d: " fmt, __func__, __LINE__, ##__VA_ARGS__)
 #else
 #define LOG_I(...) ((void)0) // Completely ignored by the compiler
 #endif
 
 // The Magic: If disabled, LOG_D does absolutely nothing
 #if DEBUG_ENABLED
-#define LOG_D(...) pico_log(LOG_DEBUG, __VA_ARGS__)
+// #define LOG_D(...) pico_log(LOG_DEBUG, __VA_ARGS__)
+#define LOG_D(fmt, ...) pico_log(LOG_DEBUG, ANSI_COLOR_FN "%s" ANSI_RESET "():%d: " fmt, __func__, __LINE__, ##__VA_ARGS__)
 #else
 #define LOG_D(...) ((void)0) // Completely ignored by the compiler
 #endif

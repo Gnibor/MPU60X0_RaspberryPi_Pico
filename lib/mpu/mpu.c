@@ -234,7 +234,7 @@ bool mpu_who_am_i(void){
 		    LOG_I( ANSI_COLOR_FN "mpu_who_am_i()" ANSI_RESET ":  device is a MPU6500 (0x%02X)", gc_mpu[0]);
 		    return true;
 		default:
-		    LOG_E( ANSI_COLOR_FN "mpu_who_am_i()" ANSI_RESET ":  device is not a recognized MPU (0x%02X)", gc_mpu[0]);
+		    LOG_E("device is not a recognized MPU (0x%02X)", gc_mpu[0]);
 		    return false;
 	}
 }
@@ -243,8 +243,8 @@ bool mpu_who_am_i(void){
  * @brief Puts the MPUs I²C in pass-through-mode
  */
 bool mpu_bypass(bool active){
-	if(!mpu_read_register(MPU_REG_INT_PIN_CFG, gc_mpu, 1, false)){
-		LOG_E(ANSI_COLOR_FN "mpu_bypass" ANSI_RESET "(): I²C read failed reg=0x%02X len=1 block=false", MPU_REG_INT_PIN_CFG);
+	if(!mpu_read_register(MPU_REG_INT_PIN_CFG, gc_mpu, 1)){
+		LOG_E("I²C read failed reg=0x%02X len=1", MPU_REG_INT_PIN_CFG);
 	}
 
 	return true;
