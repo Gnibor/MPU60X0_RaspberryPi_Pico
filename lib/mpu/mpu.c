@@ -245,6 +245,7 @@ bool mpu_who_am_i(void){
 bool mpu_bypass(bool active){
 	if(!mpu_read_register(MPU_REG_INT_PIN_CFG, gc_mpu, 1)){
 		LOG_E("I2C read failed reg=0x%02X len=1", MPU_REG_INT_PIN_CFG);
+		return false;
 	}
 
 	return true;
