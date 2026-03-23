@@ -31,22 +31,20 @@
 int main(void){
 	pico_stdio_init();
 	
-	//mpu_s mpu = mpu_init(MPU_I2C_PORT, MPU_ADDR_AD0_GND);
 	mpu_s mpu = mpu_init(MPU_I2C_PORT, MPU_ADDR_AD0_GND);
 	mpu_use_struct(&mpu);
 
 	mpu_bypass(true);
-	//mpu_reset(MPU_RESET_SIG_COND);
 
 	mpu_reset(MPU_RESET_ALL);
 
-	//if(mpu_clk_sel(MPU_CLK_XGYRO)) printf("CLK_SEL is set to the internal 8Mhz clock!!!\n");
+	mpu_clk_sel(MPU_CLK_XGYRO);
 
+	mpu_fsr(MPU_FSR_2000DPS, MPU_AFSR_8G);
 	sleep_ms(2000);
 	mpu_calibrate((MPU_ACCEL_X | MPU_GYRO), 100);
 
-	mpu_fsr(MPU_FSR_2000DPS, MPU_AFSR_8G);
-	// mpu_dlpf_cfg(MPU_DLPF_CFG_5HZ);
+	mpu_dlpf_cfg(MPU_DLPF_CFG_5HZ);
 
 	LOG_I("how big is the struct: %dbytes", sizeof(mpu));
 
@@ -58,7 +56,6 @@ int main(void){
 
 	mpu_int_motion_cfg(1, 160);
 
-	//if(mpu_cycle_mode(MPU_CYCLE_ON, MPU_LP_WAKE_5HZ)) LOG_I("Enable Cycle mode!!!\n");
 	sleep_ms(10);
 
 	// Data ready interrupt activate

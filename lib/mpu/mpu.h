@@ -26,6 +26,7 @@
 #define MPU60X0_H
 
 #include <stdint.h>
+#include "hardware/structs/i2c.h"
 #include "mpu_reg_map.h"
 #include "rp_pico.h"
 #include "log.h"
@@ -70,7 +71,7 @@ typedef enum{
 	MPU_ACCEL   =  (1 << 0), /**< Accelerometer sensor flag. 0b00000001 0x01 */
 	MPU_TEMP    =  (1 << 1), /**< Temperature sensor flag. 0b00000010 0x02 */
 	MPU_GYRO    =  (1 << 2), /**< Gyroscope sensor flag. 0b00000100 0x04 */
-	MPU_SCALED  =  (1 << 3), /**< Modifier: Apply scaling/offsets to raw values. 0b00001000 0x08 */
+	MPU_SCALED  =  (1 << 3), /**< Modifier: Apply scaling to raw values. 0b00001000 0x08 */
 	/* Axis modifiers for calibration */
 	MPU_ACCEL_X = ((1 << 4) | MPU_ACCEL), /**< Calibrate Accel with X-axis against gravity. 0b00010001 0x11 */
 	MPU_ACCEL_Y = ((1 << 5) | MPU_ACCEL), /**< Calibrate Accel with Y-axis against gravity. 0b00100001 0x21 */
@@ -160,7 +161,6 @@ typedef struct mpu_s{
 	// === Configuration ===
 	// =====================
 	struct{
-		i2c_hw_t *i2c_hw;
 		mpu_addr_t addr; // Device Address
 		struct{ int32_t x, y, z; } offset_gyro, offset_accel;
 

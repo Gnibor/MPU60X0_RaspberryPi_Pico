@@ -23,11 +23,12 @@
  * @see https://github.com/Gnibor/MPU-Driver-Raspberry-Pi-Pico
  */
 #include "hardware/gpio.h"
-#include "mpu_reg_map.h"
 #include <stdint.h>
 #include <string.h>
 #include <stdio.h>
+#include "mpu_reg_map.h"
 #include "mpu.h"
+#include "i2c.h"
 
 // ===========================
 // === Function prototypes ===
@@ -67,9 +68,9 @@ mpu_s mpu_init(i2c_hw_t *i2c_hw, mpu_addr_t addr){
 	memset(&mpu, 0, sizeof(mpu));
 
 	if(!i2c_hw){
-		mpu.conf.i2c_hw = i2c1_hw;
+		g_i2c.hw = i2c1_hw;
 		LOG_W("i2c_hw = NULL, fallback=i2c1");
-	}else mpu.conf.i2c_hw = i2c_hw;
+	}else g_i2c.hw = i2c_hw;
 
 	if(!addr){
 		mpu.conf.addr = MPU_ADDR_AD0_GND;
@@ -80,7 +81,6 @@ mpu_s mpu_init(i2c_hw_t *i2c_hw, mpu_addr_t addr){
 	mpu.conf.fsr_div.gyro = 131.0f;
 	g_mpu = &mpu;
 
-	g_i2c.hw = i2c_hw;
 	g_i2c.scl_pin = MPU_SCL_PIN;
 	g_i2c.sda_pin = MPU_SDA_PIN;
 	g_i2c.baudrate = 400000;
@@ -727,25 +727,26 @@ bool mpu_calibrate(mpu_sensor_t sensor, uint8_t samples){
 		g_mpu->conf.offset_accel.y = sum_y / samples; // Store y axis average as offset_accel.y
 		g_mpu->conf.offset_accel.z = sum_z / samples; // Store z axis average as offset_accel.z
 
+		int32_t one_g = (int32_t)g_mpu->conf.fsr_div.accel;
 		if((sensor & MPU_ACCEL_X) == MPU_ACCEL_X){
 			if(g_mpu->conf.offset_accel.x > 0)
-				g_mpu->conf.offset_accel.x -= 16384;
+				g_mpu->conf.offset_accel.x -= one_g;
 			else
-				g_mpu->conf.offset_accel.x += 16384;
+				g_mpu->conf.offset_accel.x += one_g;
 		}
 
 		if((sensor & MPU_ACCEL_Y) == MPU_ACCEL_Y){
 			if(g_mpu->conf.offset_accel.y > 0)
-				g_mpu->conf.offset_accel.y -= 16384;
+				g_mpu->conf.offset_accel.y -= one_g;
 			else
-				g_mpu->conf.offset_accel.y += 16384;
+				g_mpu->conf.offset_accel.y += one_g;
 		}
 
 		if((sensor & MPU_ACCEL_Z) == MPU_ACCEL_Z){
 			if(g_mpu->conf.offset_accel.z > 0)
-				g_mpu->conf.offset_accel.z -= 16384;
+				g_mpu->conf.offset_accel.z -= one_g;
 			else
-				g_mpu->conf.offset_accel.z += 16384;
+				g_mpu->conf.offset_accel.z += one_g;
 		}
 
 		LOG_I("accel calibration done");

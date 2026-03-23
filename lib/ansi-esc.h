@@ -1,6 +1,5 @@
 #ifndef ANSI_ESC_H
 #define ANSI_ESC_H
-#define ANSI_ESC_PICO 1
 #include <stdio.h>  /**< Standard I/O for printf, snprintf, and fflush. */
 #include <stddef.h> /**< Defines size_t for safe buffer handling. */
 
@@ -217,6 +216,9 @@ static inline void ansi_req_cursor_pos(void)		{ printf("\033[6n"); fflush(stdout
 /** @} */
 
 /**
+ * 12. Color codes
+ */
+/**
  * @name Standard Foreground Colors (3x)
  * @{
  */
@@ -257,57 +259,5 @@ static inline void ansi_req_cursor_pos(void)		{ printf("\033[6n"); fflush(stdout
 #define ANSI_BG_CYAN        "\033[46m"          /**< Cyan background. */
 #define ANSI_BG_WHITE       "\033[47m"          /**< White background. */
 /** @} */
-
-#ifndef ANSI_ESC_PICO
-#include "termios.h" /* Required for terminal mode switching */
-#include <unistd.h>  /* Required for read() */
-
-/**
- * @brief Reads the current cursor position from the terminal.
- * @param row Pointer to store the row (y).
- * @param col Pointer to store the column (x).
- * @return 0 on success, -1 on failure.
- *
- * HOW IT WORKS:
- * 1. We switch the terminal to 'Raw Mode' (no waiting for Enter).
- * 2. We send the request command (ESC[6n).
- * 3. We read the response (Format: ESC[row;colR).
- * 4. We restore the original terminal settings.
- */
-static inline int ansi_get_cursor_pos(int* row, int* col) {
-	struct termios oldt, newt;
-	char buf[32];
-	unsigned int i = 0;
-
-	/* 1. Save current terminal settings and switch to RAW mode */
-	if (tcgetattr(STDIN_FILENO, &oldt) == -1) return -1;
-	newt = oldt;
-	newt.c_lflag &= ~(ICANON | ECHO); /* Disable buffering and echoing */
-	tcsetattr(STDIN_FILENO, TCSANOW, &newt);
-
-	/* 2. Send the Query Command */
-	if (write(STDOUT_FILENO, "\033[6n", 4) != 4) {
-		tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
-		return -1;
-	}
-
-	/* 3. Read the response byte by byte until 'R' is found */
-	while (i < sizeof(buf) - 1) {
-		if (read(STDIN_FILENO, &buf[i], 1) != 1) break;
-		if (buf[i] == 'R') break;
-		i++;
-	}
-	buf[i] = '\0';
-
-	/* 4. Restore terminal settings immediately! */
-	tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
-
-	/* 5. Parse the response (skip the ESC[ part) */
-	if (buf[0] != '\033' || buf[1] != '[') return -1;
-	if (sscanf(&buf[2], "%d;%d", row, col) != 2) return -1;
-
-	return 0;
-}
-#endif /* ANSI_ESC_PICO */
 
 #endif /* ANSI_ESC_H */
