@@ -22,9 +22,8 @@
  * @copyright Copyright (c) 2026 (Gnibor) Robin Gerhartz
  * @see https://github.com/Gnibor/MPU-Driver-Raspberry-Pi-Pico
  */
-#include "ansi-esc.h"
 #include "hardware/gpio.h"
-#include "rp_pico.h"
+#include "mpu_reg_map.h"
 #include <stdint.h>
 #include <string.h>
 #include <stdio.h>
@@ -247,6 +246,18 @@ bool mpu_bypass(bool active){
 		LOG_E("I2C read failed reg=0x%02X len=1", MPU_REG_INT_PIN_CFG);
 		return false;
 	}
+
+	if(active){
+		gc_mpu[0] |= MPU_I2C_BYPASS_EN;
+	}else{
+		gc_mpu[0] &= ~MPU_I2C_BYPASS_EN;
+	}
+
+	if(!mpu_write_register((uint8_t[]){MPU_REG_INT_PIN_CFG, gc_mpu[0]}, 2, false)){
+		LOG_E("I2C write failed reg=0x%02X value=0x%02X len=2 stop=false", MPU_REG_INT_PIN_CFG, gc_mpu[0]);
+		return false;
+	}
+	LOG_I("bypass set active=%s", active ? "true" : "false");
 
 	return true;
 }

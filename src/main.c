@@ -27,7 +27,6 @@
  * ================================================================
  */
 #include "mpu.h"
-#include "mpu_reg_map.h"
 
 int main(void){
 	pico_stdio_init();
@@ -36,6 +35,7 @@ int main(void){
 	mpu_s mpu = mpu_init(MPU_I2C_PORT, MPU_ADDR_AD0_GND);
 	mpu_use_struct(&mpu);
 
+	mpu_bypass(true);
 	//mpu_reset(MPU_RESET_SIG_COND);
 
 	mpu_reset(MPU_RESET_ALL);

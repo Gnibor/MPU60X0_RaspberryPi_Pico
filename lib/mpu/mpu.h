@@ -28,6 +28,7 @@
 #include <stdint.h>
 #include "mpu_reg_map.h"
 #include "rp_pico.h"
+#include "log.h"
 
 // =============================
 // === Configurable Hardware ===
